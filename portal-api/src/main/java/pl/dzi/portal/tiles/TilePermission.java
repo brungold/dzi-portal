@@ -1,0 +1,22 @@
+/*
+ * Portal DZI — wewnętrzny portal kafelkowy departamentu DZI.
+ * Autor: Maciej Myśliwiec, 2026.
+ *
+ * Autorskie prawa osobiste (w tym prawo do oznaczenia utworu nazwiskiem autora)
+ * są niezbywalne — art. 16 ustawy z 4.02.1994 r. o prawie autorskim i prawach
+ * pokrewnych. Zakres praw majątkowych regulują odrębne ustalenia z pracodawcą.
+ * Nie usuwać tej informacji przy kopiowaniu ani modyfikacji pliku.
+ */
+package pl.dzi.portal.tiles;
+
+import org.springframework.data.annotation.Id;
+import org.springframework.data.relational.core.mapping.Table;
+
+/** Nadanie: grupa AD -> poziom uprawnień do kafelka. */
+@Table("tile_permissions")
+record TilePermission(
+        @Id Long id,
+        Long tileId,
+        String adGroup,
+        PermissionLevel permissionLevel) {
+}

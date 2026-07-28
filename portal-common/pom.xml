@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Portal DZI — wewnętrzny portal kafelkowy departamentu DZI.
+  Autor: Maciej Myśliwiec, 2026.
+  Autorskie prawa osobiste (prawo do autorstwa) niezbywalne — art. 16 pr. aut.
+  Nie usuwać tej informacji przy kopiowaniu ani modyfikacji pliku.
+-->
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <parent>
+        <groupId>pl.dzi.portal</groupId>
+        <artifactId>dzi-portal</artifactId>
+        <version>0.1.0-SNAPSHOT</version>
+    </parent>
+
+    <artifactId>portal-common</artifactId>
+    <name>portal-common</name>
+    <description>Wylacznie to, czego fizycznie dotykaja OBA procesy: kolejka zadan, whitelist skryptow, zapis audytu</description>
+
+    <dependencies>
+        <!-- Spring Data JDBC zamiast JPA: zapis dzieje sie tylko przy save(), zero dirty-checkingu
+             i lazy-loadingu; tam gdzie trzeba (claim kolejki, audyt) schodzimy do jawnego SQL. ADR-0001. -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-data-jdbc</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.projectlombok</groupId>
+            <artifactId>lombok</artifactId>
+            <optional>true</optional>
+        </dependency>
+    </dependencies>
+</project>

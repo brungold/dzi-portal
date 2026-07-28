@@ -1,0 +1,33 @@
+# ======================================================================
+# Portal DZI — wewnętrzny portal kafelkowy departamentu DZI.
+# Autor: Maciej Myśliwiec, 2026.
+# Autorskie prawa osobiste (prawo do autorstwa) niezbywalne — art. 16 pr. aut.
+# Nie usuwać tej informacji przy kopiowaniu ani modyfikacji pliku.
+# ======================================================================
+spring:
+  datasource:
+    # Lokalny SQL Server Express / kontener; założenie bazy: deploy/sql/dev-setup.sql
+    url: jdbc:sqlserver://localhost:1433;databaseName=portal_dev;encrypt=true;trustServerCertificate=true
+    username: portal_dev
+    password: ${PORTAL_DEV_DB_PASSWORD:PortalDev123!}
+  flyway:
+    # Dev dokleja seedy (V100+) do migracji schematu; prod widzi tylko db/migration.
+    locations: classpath:db/migration,classpath:db/migration-dev
+  web:
+    resources:
+      # Dev-only: Spring serwuje frontend z katalogu repo (w prod robi to IIS).
+      # Ścieżka względem katalogu modułu portal-api (tak działa spring-boot:run).
+      static-locations: file:../frontend/,classpath:/static/
+
+portal:
+  security:
+    # Wygoda dev: brak nagłówka => podstawiany użytkownik testowy.
+    # Żądanie i tak musi przyjść z loopbacku; w prod właściwość jest jawnie pusta.
+    dev-fallback-user: tester
+    # Poza profilem prod grupy pochodzą z tej mapy (StaticAdGroupResolver) — zero zależności od AD.
+    static-groups:
+      tester:
+        - DZI-Portal-Admin
+        - DZI-Portal-Raporty-Odczyt
+      viewer:
+        - DZI-Portal-Raporty-Odczyt

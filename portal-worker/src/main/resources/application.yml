@@ -1,0 +1,27 @@
+# ======================================================================
+# Portal DZI — wewnętrzny portal kafelkowy departamentu DZI.
+# Autor: Maciej Myśliwiec, 2026.
+# Autorskie prawa osobiste (prawo do autorstwa) niezbywalne — art. 16 pr. aut.
+# Nie usuwać tej informacji przy kopiowaniu ani modyfikacji pliku.
+# ======================================================================
+spring:
+  application:
+    name: portal-worker
+  task:
+    scheduling:
+      pool:
+        # Domyślnie 1 wątek: 5-minutowy skrypt w pollerze blokowałby OrphanSweeper
+        # na cały czas biegu (poprawka z drugiego przeglądu, commit 32).
+        size: 2
+
+portal:
+  worker:
+    poll-delay: 5s
+    sweep-delay: 60s
+    # Kodowanie KONSOLI procesów potomnych: OEM 852 (PowerShell 5.1/cmd, polski Windows).
+    # Skrypty pisane pod UTF-8 (chcp 65001 / PowerShell 7): ustaw UTF-8.
+    console-charset: Cp852
+
+logging:
+  pattern:
+    console: "%d{yyyy-MM-dd HH:mm:ss.SSS} %5p [%X{correlationId:-}] %logger{40} : %m%n"

@@ -1,0 +1,36 @@
+# ======================================================================
+# Portal DZI — wewnętrzny portal kafelkowy departamentu DZI.
+# Autor: Maciej Myśliwiec, 2026.
+# Autorskie prawa osobiste (prawo do autorstwa) niezbywalne — art. 16 pr. aut.
+# Nie usuwać tej informacji przy kopiowaniu ani modyfikacji pliku.
+# ======================================================================
+# Profil DECLARED — deklarowana tożsamość (ADR-0003, docs/deklaracja-runbook.md).
+#
+# Bezpieczny default = zachowanie identyczne z dotychczasowym: nasłuch tylko na
+# loopbacku (server.address z application.yml) i puste allowed-cidrs. Otwarcie
+# na sieć jednostki wymaga DWÓCH świadomych zmian w tym pliku:
+#
+#   1) server.address — na adres LAN serwera (albo 0.0.0.0),
+#   2) portal.security.declared.allowed-cidrs — zakres stacji roboczych.
+#
+# Jeden przełącznik bez drugiego nie otwiera niczego: filtr odrzuca deklaracje
+# spoza zaufanych zakresów (401), nawet jeśli port jest osiągalny.
+#
+# server:
+#   address: 0.0.0.0
+
+portal:
+  security:
+    declared:
+      # PUSTE = deklaracje wyłącznie z loopbacku. Przykład otwarcia:
+      # allowed-cidrs:
+      #   - 10.20.0.0/16
+      allowed-cidrs: []
+      # Sufit żądań /api z jednego adresu (okno 1 min). 120 = 2/s — z zapasem dla
+      # przeglądarki (polling ETag co 10 s + status zadania), za mało dla pętli w skrypcie.
+      max-requests-per-minute: 120
+      # Detekcja podszywania: więcej RÓŻNYCH loginów z jednego adresu w oknie
+      # niż poniższy próg => blokada adresu na block-duration + 429 w audycie.
+      anomaly-distinct-logins: 3
+      anomaly-window: 10m
+      block-duration: 15m

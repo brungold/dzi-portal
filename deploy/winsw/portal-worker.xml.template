@@ -1,0 +1,39 @@
+<!--
+  Portal DZI — wewnętrzny portal kafelkowy departamentu DZI.
+  Autor: Maciej Myśliwiec, 2026.
+  Autorskie prawa osobiste (prawo do autorstwa) niezbywalne — art. 16 pr. aut.
+  Nie usuwać tej informacji przy kopiowaniu ani modyfikacji pliku.
+-->
+<!--
+  Szablon WinSW dla portal-worker. Symetryczny do portal-api.xml.template,
+  ale ZERO sekretow: worker laczy sie z baza wylacznie integrated security (gMSA).
+  1) Skopiuj do D:\portal\worker\portal-worker.xml, uzupelnij JAVA_HOME.
+  2) Obok WinSW-x64.exe jako portal-worker.exe; install/start jak w README-WinSW.md.
+-->
+<service>
+    <id>portal-worker</id>
+    <name>Portal DZI - Worker</name>
+    <description>Wykonywanie zadan z kolejki portalu (skrypty operacyjne)</description>
+
+    <env name="JAVA_HOME" value="C:\Program Files\Eclipse Adoptium\jdk-21.0.7.6-hotspot"/><!-- CHANGE_ME -->
+    <executable>%JAVA_HOME%\bin\java.exe</executable>
+    <arguments>-Xms128m -Xmx512m -Dfile.encoding=UTF-8 -Djava.library.path=D:\portal\worker -jar portal-worker.jar --spring.profiles.active=prod</arguments>
+    <workingdirectory>D:\portal\worker</workingdirectory>
+
+    <serviceaccount>
+        <username>DZI\gMSA-PortalWorker$</username>
+        <allowservicelogon>true</allowservicelogon>
+    </serviceaccount>
+
+    <startmode>Automatic</startmode>
+    <delayedAutoStart>true</delayedAutoStart>
+    <onfailure action="restart" delay="10 sec"/>
+    <onfailure action="restart" delay="30 sec"/>
+    <!-- 30 s > graceful shutdown; przerwane zadanie oznaczy FAILED, sieroty dobije sweeper -->
+    <stoptimeout>30 sec</stoptimeout>
+
+    <log mode="roll-by-size">
+        <sizeThreshold>10240</sizeThreshold>
+        <keepFiles>8</keepFiles>
+    </log>
+</service>

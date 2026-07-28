@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<!--
+  Portal DZI — strona główna (commit 37).
+  Autor: Maciej Myśliwiec, 2026. Prawa osobiste niezbywalne — art. 16 pr. aut.
+  Kafelki renderowane DYNAMICZNIE z /api/tiles (RBAC po stronie serwera).
+  Bezpieczeństwo: CSP (zero inline JS), textContent zamiast innerHTML,
+  sanityzacja URL-i LINK, noopener. Sieć zamknięta: zero CDN-ów.
+-->
+<html lang="pl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta http-equiv="Content-Security-Policy"
+          content="default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self'; connect-src 'self'; base-uri 'self'; form-action 'self'; object-src 'none'">
+    <meta name="referrer" content="same-origin">
+    <title>Portal DZI</title>
+    <link rel="stylesheet" href="css/portal.css">
+</head>
+<body>
+<main class="strona">
+
+    <header class="hero">
+        <div class="hero-uzytkownik" id="uzytkownik" hidden>
+            <span class="hero-login" id="uzytkownik-login"></span>
+            <span class="hero-meta" id="uzytkownik-info"></span>
+        </div>
+        <div class="hero-plyta">
+            <img src="assets/logo.png" alt="ARiMR — Agencja Restrukturyzacji i Modernizacji Rolnictwa" width="176" height="40">
+        </div>
+        <h1>Portal DZI</h1>
+        <p class="hero-podtytul">Aplikacje, raporty i zadania departamentu w jednym miejscu</p>
+    </header>
+
+    <div class="pasek-narzedzi">
+        <label class="szukaj">
+            <span class="etykieta-ukryta">Szukaj kafelka</span>
+            <input type="search" id="szukaj" placeholder="Szukaj po nazwie lub opisie…" autocomplete="off">
+        </label>
+        <div class="filtry" id="filtry" role="group" aria-label="Filtruj według rodzaju"></div>
+    </div>
+
+    <div id="komunikat" class="komunikat" hidden></div>
+    <section class="siatka" id="siatka" aria-live="polite"></section>
+    <div id="pusto" class="pusto" hidden></div>
+
+    <footer class="stopka">
+        <span class="stopka-marka">Portal DZI</span>
+        <span class="stopka-kropka" aria-hidden="true"></span>
+        <span>Departament Zarządzania Informatyką</span>
+        <p class="stopka-nota">Widzisz kafelki przypisane do Twoich grup w Active Directory.
+            Potrzebujesz dostępu do czegoś więcej — napisz do administratora portalu.</p>
+    </footer>
+
+</main>
+<script src="js/portal-app.js" defer></script>
+</body>
+</html>

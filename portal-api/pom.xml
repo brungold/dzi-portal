@@ -1,0 +1,129 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Portal DZI — wewnętrzny portal kafelkowy departamentu DZI.
+  Autor: Maciej Myśliwiec, 2026.
+  Autorskie prawa osobiste (prawo do autorstwa) niezbywalne — art. 16 pr. aut.
+  Nie usuwać tej informacji przy kopiowaniu ani modyfikacji pliku.
+-->
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <parent>
+        <groupId>pl.dzi.portal</groupId>
+        <artifactId>dzi-portal</artifactId>
+        <version>0.1.0-SNAPSHOT</version>
+    </parent>
+
+    <artifactId>portal-api</artifactId>
+    <name>portal-api</name>
+    <description>REST API portalu: security, audyt, kafelki, zadania, zbiory danych (XLSX), Flyway</description>
+
+    <dependencies>
+        <dependency>
+            <groupId>pl.dzi.portal</groupId>
+            <artifactId>portal-common</artifactId>
+            <version>${project.version}</version>
+        </dependency>
+
+        <!-- Boot 4: web starter nazywa sie teraz webmvc (stary spring-boot-starter-web jest deprecated) -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-webmvc</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-security</artifactId>
+        </dependency>
+        <!-- Boot 4: Flyway wymaga jawnego startera (modularne auto-configuration) -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-flyway</artifactId>
+        </dependency>
+        <!-- Flyway 10+: wsparcie SQL Server wydzielone do osobnego modulu -->
+        <dependency>
+            <groupId>org.flywaydb</groupId>
+            <artifactId>flyway-sqlserver</artifactId>
+        </dependency>
+        <!-- health/info dla WinSW i diagnostyki; ekspozycja ograniczona w application.yml -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-actuator</artifactId>
+        </dependency>
+        <!-- Grupy AD: jedno zapytanie z LDAP_MATCHING_RULE_IN_CHAIN; wersje zarzadza BOM Boota -->
+        <dependency>
+            <groupId>org.springframework.ldap</groupId>
+            <artifactId>spring-ldap-core</artifactId>
+        </dependency>
+        <!-- Etap 5: import XLSX. POI nie jest zarzadzane przez BOM Boota - wersja jawna;
+             przy aktualizacjach sprawdz nowszy patch linii 5.x. -->
+        <dependency>
+            <groupId>org.apache.poi</groupId>
+            <artifactId>poi-ooxml</artifactId>
+            <version>5.3.0</version>
+        </dependency>
+        <dependency>
+            <groupId>com.microsoft.sqlserver</groupId>
+            <artifactId>mssql-jdbc</artifactId>
+            <scope>runtime</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.projectlombok</groupId>
+            <artifactId>lombok</artifactId>
+            <optional>true</optional>
+        </dependency>
+
+        <!-- Boot 4: startery testowe per technologia; ciagna spring-boot-starter-test tranzytywnie -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-webmvc-test</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-security-test</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <!-- Etap 2: testy integracyjne na prawdziwym SQL Server; wersjami zarzadza BOM testcontainers z pomu nadrzednego.
+             Klasy *IT uruchamia failsafe w fazie verify; bez Dockera testy same sie pomijaja. -->
+        <dependency>
+            <groupId>org.testcontainers</groupId>
+            <artifactId>junit-jupiter</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.testcontainers</groupId>
+            <artifactId>mssqlserver</artifactId>
+            <scope>test</scope>
+        </dependency>
+    </dependencies>
+
+    <build>
+        <plugins>
+            <plugin>
+                <groupId>org.springframework.boot</groupId>
+                <artifactId>spring-boot-maven-plugin</artifactId>
+                <executions>
+                    <execution>
+                        <goals>
+                            <goal>build-info</goal>
+                        </goals>
+                    </execution>
+                </executions>
+            </plugin>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-failsafe-plugin</artifactId>
+                <executions>
+                    <execution>
+                        <goals>
+                            <goal>integration-test</goal>
+                            <goal>verify</goal>
+                        </goals>
+                    </execution>
+                </executions>
+            </plugin>
+        </plugins>
+    </build>
+</project>

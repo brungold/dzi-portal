@@ -1,0 +1,36 @@
+# ======================================================================
+# Portal DZI — wewnętrzny portal kafelkowy departamentu DZI.
+# Autor: Maciej Myśliwiec, 2026.
+# Autorskie prawa osobiste (prawo do autorstwa) niezbywalne — art. 16 pr. aut.
+# Nie usuwać tej informacji przy kopiowaniu ani modyfikacji pliku.
+# ======================================================================
+spring:
+  application:
+    name: portal-api
+  servlet:
+    multipart:
+      # Import XLSX (Etap 5): pliki portalowe to setki-tysiące wierszy; twardy limit
+      # chroni pamięć (staging w pamięci — próg rewizji w XlsxParser).
+      max-file-size: 10MB
+      max-request-size: 12MB
+
+server:
+  port: 8080
+  # Bezpieczny default: aplikacja słucha WYŁĄCZNIE na loopbacku — jedynym klientem jest IIS
+  # na tej samej maszynie. To pierwsza warstwa ochrony nagłówka X-Auth-User (druga jest w filtrze).
+  address: 127.0.0.1
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info
+
+logging:
+  pattern:
+    console: "%d{yyyy-MM-dd HH:mm:ss.SSS} %5p [%X{correlationId:-}] %logger{40} : %m%n"
+
+portal:
+  security:
+    header: X-Auth-User
+    group-cache-ttl: 10m

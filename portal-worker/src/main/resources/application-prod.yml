@@ -1,0 +1,11 @@
+# ======================================================================
+# Portal DZI — wewnętrzny portal kafelkowy departamentu DZI.
+# Autor: Maciej Myśliwiec, 2026.
+# Autorskie prawa osobiste (prawo do autorstwa) niezbywalne — art. 16 pr. aut.
+# Nie usuwać tej informacji przy kopiowaniu ani modyfikacji pliku.
+# ======================================================================
+spring:
+  datasource:
+    # Integrated Security = tożsamość usługi (gMSA-PortalWorker) — inne konto niż api,
+    # dzięki czemu w audycie SQL i uprawnieniach widać, który proces co robi.
+    url: jdbc:sqlserver://localhost:1433;databaseName=portal;integratedSecurity=true;encrypt=true;trustServerCertificate=true

@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<!--
+  Portal DZI — wewnętrzny portal kafelkowy departamentu DZI.
+  Autor: Maciej Myśliwiec, 2026.
+  Autorskie prawa osobiste (prawo do autorstwa) niezbywalne — art. 16 pr. aut.
+  Nie usuwać tej informacji przy kopiowaniu ani modyfikacji pliku.
+-->
+<!--
+  PRZYKŁAD REFERENCYJNY (nie docelowy frontend!). Kody kafelków odpowiadają
+  seedom dev (V100 + V101). Docelowo tę rolę pełni index.html kolegi.
+-->
+<html lang="pl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Portal DZI — przykład</title>
+    <style>
+        body { margin: 0; padding: 48px 24px 24px; font-family: system-ui, sans-serif; background: #eef1f4; }
+        h1 { font-size: 20px; color: #2c3e50; }
+        .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 16px; max-width: 1000px; }
+        .tile { background: #fff; border-radius: 8px; padding: 20px; box-shadow: 0 1px 3px rgba(0,0,0,.12); user-select: none; }
+        .tile h2 { margin: 0 0 6px; font-size: 16px; color: #2c3e50; }
+        .tile p { margin: 0; font-size: 13px; color: #7f8c8d; }
+    </style>
+</head>
+<body>
+    <h1>Portal DZI</h1>
+    <div class="grid">
+        <div class="tile" data-tile-id="etl-restart">
+            <h2>Restart ETL</h2>
+            <p>Ponowne uruchomienie nocnego zasilania</p>
+        </div>
+        <div class="tile" data-tile-id="demo-blad">
+            <h2>Demo: błąd skryptu</h2>
+            <p>Kończy się kodem 3, stderr w logu</p>
+        </div>
+        <div class="tile" data-tile-id="demo-timeout">
+            <h2>Demo: timeout</h2>
+            <p>Śpi 30 s przy limicie 5 s</p>
+        </div>
+        <div class="tile" data-tile-id="raport-licencje">
+            <h2>Raport licencji</h2>
+            <p>Stan wykorzystania licencji</p>
+        </div>
+        <div class="tile" data-tile-id="intranet">
+            <h2>Intranet</h2>
+            <p>Strona intranetowa departamentu</p>
+        </div>
+        <div class="tile" data-tile-id="admin-tylko">
+            <h2>Panel administratora</h2>
+            <p>Widoczny tylko dla DZI-Portal-Admin</p>
+        </div>
+    </div>
+    <script src="portal-bootstrap.js" defer></script>
+</body>
+</html>

@@ -1,0 +1,18 @@
+# Maven
+target/
+
+# IDE
+.idea/
+*.iml
+.vscode/
+.settings/
+.classpath
+.project
+
+# System
+.DS_Store
+Thumbs.db
+
+# Logi i lokalne nadpisania konfiguracji
+*.log
+application-local.yml

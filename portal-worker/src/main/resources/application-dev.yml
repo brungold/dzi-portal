@@ -1,0 +1,12 @@
+# ======================================================================
+# Portal DZI — wewnętrzny portal kafelkowy departamentu DZI.
+# Autor: Maciej Myśliwiec, 2026.
+# Autorskie prawa osobiste (prawo do autorstwa) niezbywalne — art. 16 pr. aut.
+# Nie usuwać tej informacji przy kopiowaniu ani modyfikacji pliku.
+# ======================================================================
+spring:
+  datasource:
+    # Ta sama baza co portal-api (dev): jeden schemat, dwa procesy.
+    url: jdbc:sqlserver://localhost:1433;databaseName=portal_dev;encrypt=true;trustServerCertificate=true
+    username: portal_dev
+    password: ${PORTAL_DEV_DB_PASSWORD:PortalDev123!}

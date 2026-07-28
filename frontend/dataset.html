@@ -1,0 +1,220 @@
+<!DOCTYPE html>
+<!--
+  Portal DZI — wewnętrzny portal kafelkowy departamentu DZI.
+  Autor: Maciej Myśliwiec, 2026.
+  Autorskie prawa osobiste (prawo do autorstwa) niezbywalne — art. 16 pr. aut.
+  Nie usuwać tej informacji przy kopiowaniu ani modyfikacji pliku.
+-->
+<!--
+  Widok zbioru danych (kafelki REPORT): Tabulator lokalnie (frontend/lib — zero CDN),
+  edycja komórek z optimistic lockingiem (wersja wiersza podróżuje z każdym PATCH),
+  import XLSX z raportem. Wejście: dataset.html?code=<kod zbioru>.
+  v2 (Etap 6): auto-odświeżanie ETag co 10 s — 304 gdy nic się nie zmieniło,
+  pauza w trakcie edycji komórki i gdy karta jest w tle.
+-->
+<html lang="pl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Portal DZI — zbiór danych</title>
+    <link rel="stylesheet" href="lib/tabulator/tabulator.min.css">
+    <style>
+        body { margin: 0; padding: 16px 24px; font-family: system-ui, sans-serif; background: #eef1f4; }
+        header { display: flex; align-items: center; gap: 16px; margin-bottom: 12px; flex-wrap: wrap; }
+        h1 { font-size: 18px; color: #2c3e50; margin: 0; flex: 1; }
+        a.back { color: #2980b9; text-decoration: none; font-size: 14px; }
+        button, label.import { background: #2c3e50; color: #fff; border: 0; border-radius: 4px;
+            padding: 8px 14px; font-size: 13px; cursor: pointer; }
+        label.import input { display: none; }
+        #meta { font-size: 12px; color: #7f8c8d; margin: 8px 0; }
+        #report { display: none; margin: 10px 0; padding: 10px 14px; border-radius: 4px;
+            font-size: 13px; white-space: pre-wrap; }
+        #report.ok { display: block; background: #e8f6ee; color: #1e6b40; }
+        #report.err { display: block; background: #fdecea; color: #a12622; }
+        #grid { background: #fff; border-radius: 6px; }
+    </style>
+</head>
+<body>
+    <header>
+        <a class="back" href="index.html">← kafelki</a>
+        <h1 id="title">Ładowanie…</h1>
+        <label class="import" id="importLabel" style="display:none">
+            Import XLSX<input type="file" id="importFile" accept=".xlsx">
+        </label>
+        <button id="refresh">Odśwież</button>
+    </header>
+    <div id="meta"></div>
+    <div id="report"></div>
+    <div id="grid"></div>
+
+    <script src="lib/tabulator/tabulator.min.js"></script>
+    <script>
+    (function () {
+        'use strict';
+        const code = new URLSearchParams(location.search).get('code');
+        if (!code) { document.getElementById('title').textContent = 'Brak parametru ?code'; return; }
+
+        let table = null;
+        let dataset = null;
+        let etag = null;          // token stanu zbioru z nagłówka ETag
+        let editing = false;      // pauza pollingu w trakcie edycji komórki
+        const POLL_MS = 10000;
+
+        async function fetchJson(url, options) {
+            const response = await fetch(url, Object.assign({ credentials: 'same-origin' }, options || {}));
+            const body = await response.json().catch(() => null);
+            if (!response.ok) {
+                const error = new Error((body && (body.detail || body.title)) || ('HTTP ' + response.status));
+                error.status = response.status;
+                error.body = body;
+                throw error;
+            }
+            return body;
+        }
+
+        function showReport(text, ok) {
+            const el = document.getElementById('report');
+            el.textContent = text;
+            el.className = ok ? 'ok' : 'err';
+        }
+
+        /** Edytor/formatowanie per typ; edycja tylko gdy kolumna editable i użytkownik ma EDIT. */
+        function tabulatorColumns() {
+            return dataset.columns.map(column => {
+                const def = { title: column.label, field: 'data.' + column.code, headerFilter: 'input' };
+                if (column.dataType === 'NUMBER') {
+                    def.hozAlign = 'right';
+                    def.sorter = 'number';
+                }
+                if (dataset.canEdit && column.editable) {
+                    def.editor = column.dataType === 'NUMBER' ? 'number'
+                              : column.dataType === 'DATE' ? 'date'
+                              : column.dataType === 'BOOL' ? 'tickCross' : 'input';
+                    def.cellEdited = onCellEdited;
+                }
+                return def;
+            });
+        }
+
+        /** PATCH z wersją wiersza — 409 = przegrany wyścig: cofamy wartość i każemy odświeżyć. */
+        async function onCellEdited(cell) {
+            const row = cell.getRow().getData();
+            const columnCode = cell.getField().replace(/^data\./, '');
+            try {
+                const edited = await fetchJson('/api/datasets/' + encodeURIComponent(code) + '/rows/' + row.id, {
+                    method: 'PATCH',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ columnCode: columnCode, value: stringOrNull(cell.getValue()),
+                        version: row.version })
+                });
+                // Pełny obiekt 'data' zamiast klucza z kropką: Tabulator potrafi z 'data.x'
+                // zrobić PŁASKĄ właściwość zamiast zagnieżdżonej i skanonizowana wartość
+                // nie pokazałaby się do najbliższego ticku ETag (poprawka, commit 32).
+                const rowData = cell.getRow().getData();
+                rowData.data[columnCode] = edited.value;
+                cell.getRow().update({ version: edited.version, data: rowData.data });
+                showReport('Zapisano: ' + columnCode + ' (wersja ' + edited.version + ')', true);
+            } catch (error) {
+                cell.restoreOldValue();
+                showReport('Nie zapisano: ' + error.message
+                    + (error.status === 409 ? ' [odśwież widok]' : ''), false);
+            }
+        }
+
+        function stringOrNull(value) {
+            if (value === null || value === undefined || value === '') { return null; }
+            return String(value);
+        }
+
+        async function load() {
+            // cache: 'no-store' — walidacją warunkową sterujemy sami (If-None-Match),
+            // a nie cache przeglądarki, który potrafi "zjeść" 304 i zwrócić 200 z dysku.
+            const response = await fetch('/api/datasets/' + encodeURIComponent(code),
+                { credentials: 'same-origin', cache: 'no-store' });
+            if (!response.ok) {
+                const body = await response.json().catch(() => null);
+                const error = new Error((body && (body.detail || body.title)) || ('HTTP ' + response.status));
+                error.status = response.status;
+                throw error;
+            }
+            etag = response.headers.get('ETag');
+            dataset = await response.json();
+            document.getElementById('title').textContent = dataset.name;
+            document.getElementById('meta').textContent =
+                'Wierszy: ' + dataset.rows.length + ' · klucz: ' + dataset.keyColumn
+                + (dataset.canEdit ? ' · masz uprawnienia do edycji i importu' : ' · tylko podgląd');
+            document.getElementById('importLabel').style.display = dataset.canEdit ? '' : 'none';
+
+            if (table) { table.destroy(); }
+            table = new Tabulator('#grid', {
+                data: dataset.rows,
+                columns: tabulatorColumns(),
+                layout: 'fitDataStretch',
+                height: '70vh',
+                index: 'id'
+            });
+            table.on('cellEditing', () => { editing = true; });
+            table.on('cellEdited', () => { editing = false; });
+            table.on('cellEditCancelled', () => { editing = false; });
+        }
+
+        /** Polling ETag: 304 = nic się nie stało (jedna tania agregacja po stronie serwera). */
+        async function pollForChanges() {
+            if (editing || document.hidden || !etag) { return; }
+            try {
+                const response = await fetch('/api/datasets/' + encodeURIComponent(code), {
+                    credentials: 'same-origin',
+                    cache: 'no-store',
+                    headers: { 'If-None-Match': etag }
+                });
+                if (response.status === 304 || !response.ok) { return; }
+                etag = response.headers.get('ETag');
+                dataset = await response.json();
+                table.replaceData(dataset.rows);
+                document.getElementById('meta').textContent =
+                    'Wierszy: ' + dataset.rows.length + ' · klucz: ' + dataset.keyColumn
+                    + (dataset.canEdit ? ' · masz uprawnienia do edycji i importu' : ' · tylko podgląd')
+                    + ' · odświeżono ' + new Date().toLocaleTimeString('pl-PL');
+            } catch (ignored) {
+                // chwilowy brak sieci/API: kolejny tick spróbuje ponownie
+            }
+        }
+        setInterval(pollForChanges, POLL_MS);
+
+        async function importFile(file) {
+            showReport('Importuję „' + file.name + '"…', true);
+            const form = new FormData();
+            form.append('file', file);
+            try {
+                const report = await fetchJson('/api/datasets/' + encodeURIComponent(code) + '/import',
+                    { method: 'POST', body: form });
+                showReport('Import OK: dodane ' + report.inserted + ', zmienione ' + report.updated
+                    + ', bez zmian ' + report.unchanged + ', w bazie a nie w pliku: ' + report.missingInFile
+                    + (report.warnings.length ? '\nOstrzeżenia:\n- ' + report.warnings.join('\n- ') : ''), true);
+                await load();
+            } catch (error) {
+                const report = error.body; // 422: raport walidacji jest całą treścią odpowiedzi
+                if (report && report.errors) {
+                    showReport('Import ODRZUCONY (nic nie zapisano):\n- ' + report.errors.join('\n- '), false);
+                } else {
+                    showReport('Import nieudany: ' + error.message, false);
+                }
+            }
+        }
+
+        document.getElementById('refresh').addEventListener('click', () =>
+            load().catch(e => showReport('Błąd odświeżania: ' + e.message, false)));
+        document.getElementById('importFile').addEventListener('change', event => {
+            if (event.target.files.length) { importFile(event.target.files[0]); event.target.value = ''; }
+        });
+
+        load().catch(error => {
+            document.getElementById('title').textContent = 'Zbiór: ' + code;
+            showReport(error.status === 403
+                ? 'Brak uprawnień do tego zbioru.'
+                : 'Nie udało się wczytać zbioru: ' + error.message, false);
+        });
+    })();
+    </script>
+</body>
+</html>

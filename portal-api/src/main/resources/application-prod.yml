@@ -1,0 +1,33 @@
+# ======================================================================
+# Portal DZI — wewnętrzny portal kafelkowy departamentu DZI.
+# Autor: Maciej Myśliwiec, 2026.
+# Autorskie prawa osobiste (prawo do autorstwa) niezbywalne — art. 16 pr. aut.
+# Nie usuwać tej informacji przy kopiowaniu ani modyfikacji pliku.
+# ======================================================================
+server:
+  address: 127.0.0.1   # powtórzone świadomie: prod NIGDY nie słucha poza loopbackiem
+  # Etap 6: łagodne zamykanie — w trakcie deployu bieżące żądania dostają do 20 s na dokończenie,
+  # zanim WinSW ubije proces (stoptimeout 30 s daje margines).
+  shutdown: graceful
+
+spring:
+  lifecycle:
+    timeout-per-shutdown-phase: 20s
+  datasource:
+    # Integrated Security = tożsamość usługi (gMSA-PortalApi), zero haseł w konfiguracji.
+    # Wymaga mssql-jdbc_auth-<wersja>.x64.dll w PATH usługi (patrz README, sekcja Deployment).
+    # Połączenie lokalne — self-signed cert SQL-a; po wystawieniu certu z AD CS ustaw trustServerCertificate=false.
+    url: jdbc:sqlserver://localhost:1433;databaseName=portal;integratedSecurity=true;encrypt=true;trustServerCertificate=true
+
+portal:
+  security:
+    dev-fallback-user: ""   # jawnie puste w prod
+  ldap:
+    # LDAPS obowiązkowo: AD wymusza podpisywanie — simple bind po plain 389 zostanie odrzucony.
+    # Zaufanie do certu DC: uruchamiaj JVM z -Djavax.net.ssl.trustStoreType=Windows-ROOT (README).
+    url: ldaps://dzi.pl:636
+    base: DC=dzi,DC=pl
+    # Jedyny sekret systemu: dedykowane konto read-only do LDAP; wartości z env ustawianych w WinSW.
+    user-dn: ${PORTAL_LDAP_USER_DN}
+    password: ${PORTAL_LDAP_PASSWORD}
+    group-prefix: DZI-Portal-

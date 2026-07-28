@@ -1,0 +1,60 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Portal DZI — wewnętrzny portal kafelkowy departamentu DZI.
+  Autor: Maciej Myśliwiec, 2026.
+  Autorskie prawa osobiste (prawo do autorstwa) niezbywalne — art. 16 pr. aut.
+  Nie usuwać tej informacji przy kopiowaniu ani modyfikacji pliku.
+-->
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <!-- Boot 4.1.x: linia 3.x straciła wsparcie OSS 30.06.2026. Przed startem sprawdź
+         najnowszy patch 4.1.x i podbij wersję (tylko tutaj, moduły dziedziczą). -->
+    <parent>
+        <groupId>org.springframework.boot</groupId>
+        <artifactId>spring-boot-starter-parent</artifactId>
+        <version>4.1.0</version>
+        <relativePath/>
+    </parent>
+
+    <groupId>pl.dzi.portal</groupId>
+    <artifactId>dzi-portal</artifactId>
+    <version>0.1.0-SNAPSHOT</version>
+    <packaging>pom</packaging>
+
+    <name>dzi-portal</name>
+    <description>Wewnetrzny portal DZI: portal-api (REST + security) i portal-worker (wykonywanie zadan)</description>
+
+    <modules>
+        <module>portal-common</module>
+        <module>portal-api</module>
+        <module>portal-worker</module>
+    </modules>
+
+    <properties>
+        <java.version>21</java.version>
+        <maven.compiler.release>21</maven.compiler.release>
+        <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+        <!-- Boot 4.1 NIE zarzadza juz wersjami org.testcontainers (inaczej niz linia 3.x),
+             dlatego wpinamy BOM ponizej. Wersje podbijasz TUTAJ, moduly dziedzicza. -->
+        <testcontainers.version>1.20.4</testcontainers.version>
+    </properties>
+
+    <dependencyManagement>
+        <dependencies>
+            <!-- BOM testcontainers: dzieki niemu moduly deklaruja junit-jupiter i mssqlserver
+                 BEZ <version>. Bez tego wpisu Maven odmawia wczytania portal-api i portal-worker
+                 ("'dependencies.dependency.version' ... is missing"), przez co IDE nie oznacza
+                 src/main/java jako katalogu zrodel. -->
+            <dependency>
+                <groupId>org.testcontainers</groupId>
+                <artifactId>testcontainers-bom</artifactId>
+                <version>${testcontainers.version}</version>
+                <type>pom</type>
+                <scope>import</scope>
+            </dependency>
+        </dependencies>
+    </dependencyManagement>
+</project>

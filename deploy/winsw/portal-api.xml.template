@@ -1,0 +1,45 @@
+<!--
+  Portal DZI — wewnętrzny portal kafelkowy departamentu DZI.
+  Autor: Maciej Myśliwiec, 2026.
+  Autorskie prawa osobiste (prawo do autorstwa) niezbywalne — art. 16 pr. aut.
+  Nie usuwać tej informacji przy kopiowaniu ani modyfikacji pliku.
+-->
+<!--
+  Szablon konfiguracji WinSW dla portal-api (Faza B runbooka).
+  1) Skopiuj do D:\portal\api\portal-api.xml i uzupelnij wartosci CHANGE_ME.
+  2) Obok poloz WinSW-x64.exe przemianowany na portal-api.exe.
+  3) NIE commituj wypelnionego pliku do repo (zawiera haslo LDAP) - w repo zyje tylko ten template.
+  4) Ogranicz ACL: patrz README-WinSW.md (icacls).
+-->
+<service>
+    <id>portal-api</id>
+    <name>Portal DZI - API</name>
+    <description>REST API portalu wewnetrznego DZI (Spring Boot, profil prod)</description>
+
+    <env name="JAVA_HOME" value="C:\Program Files\Eclipse Adoptium\jdk-21.0.7.6-hotspot"/><!-- CHANGE_ME: dokladna sciezka JDK -->
+    <executable>%JAVA_HOME%\bin\java.exe</executable>
+    <arguments>-Xms256m -Xmx1024m -Dfile.encoding=UTF-8 -Djavax.net.ssl.trustStoreType=Windows-ROOT -Djava.library.path=D:\portal\api -jar portal-api.jar --spring.profiles.active=prod</arguments>
+    <workingdirectory>D:\portal\api</workingdirectory>
+
+    <!-- Jedyny sekret systemu (ADR-0001 pkt 7): konto read-only do LDAP -->
+    <env name="PORTAL_LDAP_USER_DN" value="CN=svc-portal-ldap,OU=Konta serwisowe,DC=dzi,DC=pl"/><!-- CHANGE_ME: pelne DN konta -->
+    <env name="PORTAL_LDAP_PASSWORD" value="CHANGE_ME"/>
+
+    <!-- Faza B: usluga na gMSA (login konczy sie $, bez hasla).
+         Wczesniej: Install-ADServiceAccount + Test-ADServiceAccount na tym hoscie. -->
+    <serviceaccount>
+        <username>DZI\gMSA-PortalApi$</username>
+        <allowservicelogon>true</allowservicelogon>
+    </serviceaccount>
+
+    <startmode>Automatic</startmode>
+    <delayedAutoStart>true</delayedAutoStart>
+    <onfailure action="restart" delay="10 sec"/>
+    <onfailure action="restart" delay="30 sec"/>
+    <stoptimeout>30 sec</stoptimeout>
+
+    <log mode="roll-by-size">
+        <sizeThreshold>10240</sizeThreshold>
+        <keepFiles>8</keepFiles>
+    </log>
+</service>
