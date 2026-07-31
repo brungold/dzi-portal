@@ -98,14 +98,14 @@ kafelków APLIKACJA widzi każdy uwierzytelniony — treść wrażliwa mieszka z
 8. W tabeli `tiles` kolumna nazywa się **`name`**, nie `title`.
 9. „Apache" w tym projekcie = **Apache POI** (biblioteka w JAR-ze), nie Apache HTTP Server.
 
-## 7. Znane błędy do naprawienia (aplikacja działa, testy nie)
+## 7. Testy — stan faktyczny (zweryfikowany w master 31.07.2026)
 
-- `@WebMvcTest` po modularyzacji Boota 4.1 →
-  `org.springframework.boot.webmvc.test.autoconfigure` (cztery pliki testowe).
-- `TilesConfiguration`, `TileRepository`, `TilePermissionRepository` — brak `public`,
-  więc testy z innych pakietów ich nie widzą.
-- Skutek: `mvn clean verify` **nie jest zielony**; do wdrożenia używamy
-  `mvn clean install -Dmaven.test.skip=true`. To błędy testowe, nie aplikacyjne.
+- Relokacja `@WebMvcTest` (Boot 4.1) jest już naniesiona — cztery pliki testowe
+  importują `org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest`.
+- `TilesConfiguration`, `TileRepository`, `TilePermissionRepository` są `public`.
+- Oczekiwanie: `mvn clean verify` zielony (klasy `*IT` bez Dockera pomijają się same).
+  Przy niespodziewanym FAIL wdrożenia nie blokować:
+  `mvn clean package -Dmaven.test.skip=true` i wrócić z logiem.
 
 ## 8. Zarządzanie dostępami (bez panelu — celowo)
 
@@ -133,6 +133,9 @@ kafelków APLIKACJA widzi każdy uwierzytelniony — treść wrażliwa mieszka z
   w wariancie A). ARR: „Include TCP port from client IP" MUSI być odznaczone — inaczej
   limiter anomalii kluczuje po porcie efemerycznym i nigdy nie zadziała.
   Powrót do wariantu A pozostaje otwarty; progi rewizji w ADR-0003.
+  Przeglądarka również deklaruje (paczka 40): `frontend/js/declared-identity.js`
+  sonduje `/api/whoami`, przy 401 pokazuje okno deklaracji i dokłada `X-Auth-User`
+  do każdego wywołania `/api`; w wariancie A / dev (sonda 200) jest przezroczysty.
 - Publikacja zasobów: zbiory XLSX (kafelki DATASET), statyczne aplikacje HTML (LINK),
   skrypty PS1/Python (SCRIPT, Python przez wrapper .ps1). Kandydat: arkusz ~293 rekordów
   systemów/modułów jako kafelek DATASET.

@@ -118,12 +118,12 @@ szablony WinSW w `deploy/winsw/`, retencja w `deploy/sql/audit-retention.sql`.
 
 ## Znane punkty uwagi
 
-1. **Znane błędy testów (aplikacja działa, suite nie przechodzi).** Do naprawienia:
-   `@WebMvcTest` po modularyzacji Boota 4.1 siedzi w `org.springframework.boot.webmvc.test.autoconfigure`
-   (cztery pliki testowe); `TilesConfiguration`, `TileRepository` i `TilePermissionRepository`
-   potrzebują modyfikatora `public`, żeby były widoczne z testów w innych pakietach.
-   Obejście na czas wdrożenia: `mvn clean install -Dmaven.test.skip=true`.
-   Do czasu naprawy `mvn clean verify` **nie jest** zielony i nie jest kryterium wdrożenia.
+1. **Testy: znane relokacje Boota 4.1 są już naniesione w źródłach** — cztery pliki
+   testowe importują `@WebMvcTest` z `org.springframework.boot.webmvc.test.autoconfigure`,
+   a `TilesConfiguration`, `TileRepository` i `TilePermissionRepository` są `public`
+   (zweryfikowane w master 31.07.2026). Sędzią pozostaje `mvn clean verify` u Ciebie;
+   przy niespodziewanym FAIL wdrożenia nie blokuj — `mvn clean package -Dmaven.test.skip=true`
+   i wróć z logiem testu.
 2. Testcontainers 2.0 mógł zmienić pakiety — dotyczy wyłącznie klas `*IT`.
 3. Wersje przypięte świadomie: POI **5.3.0** (BOM Boota nie zarządza), Tabulator **6.5.2**
    (zvendorowany w `frontend/lib/`, MIT).
@@ -132,7 +132,7 @@ szablony WinSW w `deploy/winsw/`, retencja w `deploy/sql/audit-retention.sql`.
    kto przejdzie filtr tożsamości.** RBAC chroni `/api`, nie pliki statyczne. Treść
    wrażliwa ma mieszkać wyłącznie za endpointami `/api` — nigdy w samym HTML-u kafelka.
 
-## Stan po commitach 33–38
+## Stan po commitach 33–40
 
 - **33** — profil `demo`: portal bez bazy (in-memory za interfejsami repo, symulator zadań,
   audyt do logu). **W tym wariancie źródeł profil usunięty** — decyzja i skutki: `docs/adr/0004-wariant-bez-demo.md`.
@@ -148,6 +148,13 @@ szablony WinSW w `deploy/winsw/`, retencja w `deploy/sql/audit-retention.sql`.
   (`user_departments`), `application-declared.yml`, testy jednostkowe,
   `deploy/declared/export-user-departments.ps1`, `docs/deklaracja-runbook.md`.
   Łańcuch egzekwowania i audytu — bez zmian.
+- **39** — dokumentacja obu wariantów tożsamości (bez zmian w kodzie): README, brief,
+  banery w runbookach Etapu 1/6 i README WinSW/IIS, odsyłacze ADR-0001 → ADR-0003.
+- **40** — deklaracja loginu w **przeglądarce**: `frontend/js/declared-identity.js`
+  (nakładka na `fetch`) sonduje `/api/whoami`; przy 401 pokazuje okno deklaracji,
+  zapamiętuje login (localStorage) i dokłada `X-Auth-User` do wywołań `/api`;
+  w wariancie A / dev (sonda 200) jest przezroczysta. `portal-app.js`,
+  `portal-bootstrap.js` i inline-skrypt `dataset.html` — nietknięte.
 
 Historia per commit: `docs/etapy/`. Brief dla nowych sesji pracy: `docs/BRIEF-PROJEKTU.md`.
 
