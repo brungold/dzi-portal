@@ -1,5 +1,13 @@
 # Etap 1 — runbook: stalowa nitka security na serwerze DZI-APP01V
 
+> **Wariant A (integracja z AD).** Ten runbook opisuje wdrożenie z Kerberosem, SPN,
+> gMSA i LDAPS. Jeśli wdrażasz **profil `declared`** (ADR-0003), obowiązuje
+> `docs/deklaracja-runbook.md`, a stąd **nie stosuje się**: SPN/`setspn`, Windows
+> Authentication w IIS, gMSA, konfiguracja i sekret LDAP, `verify-etap1.ps1` w części
+> Kerberos. Aktualne pozostają: układ katalogów, usługa WinSW, reguła rewrite `/api`,
+> uprawnienia SQL i kroki debugowania.
+
+
 ## Cel i kryteria akceptacji
 
 Przeglądarka na **innej stacji** → `https://portal.dzi.pl/api/whoami` i:

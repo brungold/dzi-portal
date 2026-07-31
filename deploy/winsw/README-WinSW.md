@@ -1,5 +1,11 @@
 # WinSW — portal-api jako usługa Windows (Faza B)
 
+> **Wariant `declared` (ADR-0003):** usługa NIE używa gMSA i NIE dostaje zmiennej
+> środowiskowej z hasłem do LDAP — w tym trybie system nie ma żadnego sekretu.
+> W `<arguments>` profil to `declared` (nie `prod`; łączenie obu jest błędem, bo prod
+> aktywuje LDAP). Reszta — instalacja, `stoptimeout`, logi, start/stop — bez zmian.
+
+
 ## Instalacja
 
 1. Pobierz `WinSW-x64.exe` (GitHub: winsw/winsw, release 2.x/3.x) i przenieś offline na serwer.

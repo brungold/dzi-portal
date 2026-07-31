@@ -1,5 +1,13 @@
 # IIS — konfiguracja witryny portal.dzi.pl (Etap 1)
 
+> **Wariant `declared` (ADR-0003):** IIS pełni tu rolę wyłącznie terminatora TLS
+> i reverse proxy (URL Rewrite + ARR). Windows Authentication **nie jest** źródłem
+> tożsamości — login przychodzi w nagłówku `X-Auth-User` od klienta. Regułę rewrite
+> trzymaj wąską (tylko `/api/*` → `127.0.0.1:8080`); przy proxy z loopbacku
+> `allowed-cidrs` zostają puste, a realny adres klienta aplikacja bierze
+> z `X-Forwarded-For` (honorowanego wyłącznie zza loopbacku).
+
+
 ## Moduły
 1. **URL Rewrite** i **ARR** (Application Request Routing) — instalacja offline (serwer bez internetu):
    pobierz instalatory MSI na stacji, przenieś zatwierdzonym kanałem.

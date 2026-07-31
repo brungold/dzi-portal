@@ -35,11 +35,19 @@ Rozmiar naturalnie ograniczony liczbą pracowników; leniwa ewaluacja wystarcza.
 Próg wymiany: potrzeba metryk trafień, aktywnej ewikcji albo limitu pamięci.
 
 **6. Wariant A (nagłówek z IIS) zamiast SPNEGO/Waffle w aplikacji.**
+> Uzupełnione przez **ADR-0003**: tam, gdzie Kerberos jest organizacyjnie niedostępny,
+> ten sam nagłówek niesie deklarację loginu (profil `declared`) — z innym modelem
+> zaufania i innymi kompensacjami. Wariant A pozostaje docelowy.
+
 IIS robi Kerberos natywnie i za darmo; aplikacja pozostaje czystą Javą testowalną MockMvc
 (nagłówek da się podrobić w teście — biletu Kerberos nie). Granica zaufania: trzy warstwy
 (bind 127.0.0.1, filtr honoruje tylko loopback, IIS nadpisuje nagłówek bezwarunkowo).
 
 **7. Jedyny sekret systemu: konto read-only do LDAP.**
+> Uzupełnione przez **ADR-0003**: w profilu `declared` nie ma LDAP-a w runtime,
+> więc system nie ma ŻADNEGO sekretu; przynależność pochodzi z tabeli
+> `user_departments`, prowizjonowanej eksportem z AD wykonywanym przez administratora.
+
 SQL przez integrated security (gMSA), tożsamość użytkownika z Kerberosa — hasło ma wyłącznie
 `svc-portal-ldap` (odczyt katalogu), podawane przez zmienne środowiskowe w definicji usługi
 (WinSW), nigdy w repo. Czysta Java nie umie bindować do LDAP ambientową tożsamością Windows

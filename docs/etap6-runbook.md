@@ -1,5 +1,12 @@
 # Etap 6 — runbook: odświeżanie, hardening, deploy z rollbackiem
 
+> **Uwaga do wariantu `declared`:** kroki dotyczące gMSA nie mają zastosowania
+> (usługa działa na koncie bez dostępu do katalogu w runtime — patrz ADR-0003).
+> Krok weryfikacyjny „kafelek demo wykonuje zadanie" wykonuj **prawdziwym** kafelkiem
+> SCRIPT ze skryptem z `scripts/demo/` — profil `demo` został usunięty (ADR-0004).
+> Reszta runbooka (NTFS, retencja, deploy, **test rollbacku**) obowiązuje bez zmian.
+
+
 ## A. Kod (commity 27–28) i weryfikacja lokalna
 
 1. `mvn clean verify` — nowe testy: ETag/304 w slice zbiorów, pominięcie 304 w audycie.

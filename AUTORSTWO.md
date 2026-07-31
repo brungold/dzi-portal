@@ -11,6 +11,12 @@ Zakres autorstwa obejmuje w szczególności:
   API na loopbacku, osobny worker wykonujący skrypty z kolejki-tabeli),
 - model bezpieczeństwa (trójwarstwowa ochrona nagłówka tożsamości, dwustronny RBAC
   oparty o grupy AD, whitelist skryptów, audyt append-only egzekwowany uprawnieniami SQL),
+- model **deklarowanej tożsamości** dla wdrożeń bez integracji z katalogiem
+  (ADR-0003): rozdzielenie deklaracji od autoryzacji — klient deklaruje wyłącznie
+  login, przynależność i uprawnienia wyprowadza serwer; odrzucenie kontroli
+  po stronie klienta; kompensacje (fail-closed, limiter wykrywający deklarowanie
+  wielu loginów z jednego adresu, podwójny przełącznik otwarcia na sieć)
+  oraz jawne wyznaczenie granic zastosowania tego trybu,
 - projekt schematu bazy danych i strategię migracji (Flyway, jeden właściciel schematu),
 - mechanizm kolejki zadań (atomowy claim: `UPDLOCK, READPAST` + `OUTPUT`),
 - model danych zbiorów (agregat wiersz+komórki, optimistic locking przez `@Version`),
