@@ -30,6 +30,8 @@ import pl.dzi.portal.infrastructure.audit.Audited;
 import java.io.IOException;
 
 /**
+ *   Portal DZI — wewnętrzny portal kafelkowy departamentu DZI.
+ *   Autor: Maciej Myśliwiec, 2026.
  * REST zbiorów danych. Import zwraca raport w OBU przypadkach: 200 gdy merge przeszedł,
  * 422 gdy walidacja odrzuciła plik (raport JEST treścią odpowiedzi — to on jest
  * produktem walidacji, ProblemDetail nic by tu nie dodał). Celowo bez wyjątku:

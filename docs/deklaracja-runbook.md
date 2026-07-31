@@ -96,5 +96,4 @@ jak w wariancie A. Danych wrażliwych za kafelki tego trybu nie wystawiamy.
 
 ---
 
-*Autor: Maciej Myśliwiec, 2026. Autorskie prawa osobiste (prawo do autorstwa)
-niezbywalne — art. 16 pr. aut. Szczegóły: `AUTORSTWO.md`.*
+*Autor: Maciej Myśliwiec, 2026. *

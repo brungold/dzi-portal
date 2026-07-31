@@ -111,5 +111,4 @@ bez backendu zwraca 502 tylko na /api, statyka działa.
 
 ---
 
-*Autor: Maciej Myśliwiec, 2026. Autorskie prawa osobiste (prawo do autorstwa)
-niezbywalne — art. 16 pr. aut. Szczegóły: `AUTORSTWO.md`.*
+*Autor: Maciej Myśliwiec, 2026. *

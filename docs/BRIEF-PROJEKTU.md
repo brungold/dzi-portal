@@ -100,7 +100,7 @@ Próg panelu admina (Etap 7): >15–20 kafelków albo zmiany częściej niż raz
 
 ## 9. Konwencje współpracy z asystentem (utrzymywać!)
 
-Po polsku, zwięźle. Kod dostarczany jako **paczki zip** w strukturze repo + README
+Kod dostarczany jako **paczki zip** w strukturze repo + README
 z tabelą zmian i planem commitów; przed spakowaniem walidacja spójności (klamry z
 odjęciem literałów, asercje obecności/zakazu, parse XML); **sędzią jest `mvn clean
 verify` u usera** — kod powstaje bez kompilacji. Wersje pinowane (POI 5.3.0, Tabulator

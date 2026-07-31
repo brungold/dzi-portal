@@ -19,28 +19,6 @@ Zakres autorstwa obejmuje w szczególności:
   retencja rejestrów poza tożsamościami runtime),
 - decyzje architektoniczne udokumentowane w `docs/adr/`.
 
-Kod powstał z użyciem asystenta AI jako narzędzia wspomagającego pisanie
-(analogicznie do IDE, generatorów kodu czy bibliotek). Autorstwo w rozumieniu
-prawa autorskiego wynika z twórczego wkładu człowieka: koncepcji, decyzji
-projektowych, specyfikacji, przeglądu i weryfikacji — a te są w całości autorstwa
-wymienionej wyżej osoby.
-
-## Prawa
-
-Autorskie **prawa osobiste**, w tym prawo do oznaczenia utworu nazwiskiem autora,
-są niezbywalne i nieograniczone w czasie — art. 16 ustawy z dnia 4 lutego 1994 r.
-o prawie autorskim i prawach pokrewnych. Przysługują autorowi niezależnie od tego,
-komu przysługują prawa majątkowe.
-
-Zakres autorskich **praw majątkowych** regulują odrębne przepisy i ustalenia
-z pracodawcą (por. art. 12 i art. 74 ust. 3 ww. ustawy dotyczące utworów oraz
-programów komputerowych stworzonych w ramach stosunku pracy). Niniejszy plik nie
-rozstrzyga tej kwestii i nie stanowi opinii prawnej.
-
-Nagłówki z informacją o autorstwie umieszczone w plikach źródłowych nie mogą być
-usuwane ani modyfikowane przy kopiowaniu, dalszym rozwijaniu ani rozpowszechnianiu
-kodu.
-
 ## Komponenty zewnętrzne (nie są utworem autora)
 
 | Komponent | Licencja | Lokalizacja / sposób użycia |
@@ -75,10 +53,18 @@ Plik `docs/przyklady/licencje-import.xlsx` jest binarny — informacja o autorst
 nie została w nim osadzona w treści; można ją dodać we właściwościach dokumentu
 (Plik → Informacje → Autor).
 
-## Historia powstania
+## Prawa
 
-Kompletna historia projektu, wraz z uzasadnieniem każdej decyzji, znajduje się w:
+Autorskie **prawa osobiste**, w tym prawo do oznaczenia utworu nazwiskiem autora,
+są niezbywalne i nieograniczone w czasie — art. 16 ustawy z dnia 4 lutego 1994 r.
+o prawie autorskim i prawach pokrewnych. Przysługują autorowi niezależnie od tego,
+komu przysługują prawa majątkowe.
 
-- `docs/adr/0001-wybory-technologiczne.md`, `docs/adr/0002-hardening-i-odswiezanie.md`
-- `docs/etapy/README-ETAP1..6.md` — etapy budowy (commity 1–30)
-- `docs/etapy/README-POPRAWKI-31.md`, `README-POPRAWKI-32.md` — poprawki po przeglądzie
+Zakres autorskich **praw majątkowych** regulują odrębne przepisy i ustalenia
+z pracodawcą (por. art. 12 i art. 74 ust. 3 ww. ustawy dotyczące utworów oraz
+programów komputerowych stworzonych w ramach stosunku pracy). Niniejszy plik nie
+rozstrzyga tej kwestii i nie stanowi opinii prawnej.
+
+Nagłówki z informacją o autorstwie umieszczone w plikach źródłowych nie mogą być
+usuwane ani modyfikowane przy kopiowaniu, dalszym rozwijaniu ani rozpowszechnianiu
+kodu.

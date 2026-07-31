@@ -43,5 +43,4 @@ Na koniec regresja Etapu 1: `deploy\iis\verify-etap1.ps1` (łańcuch Kerberos + 
 
 ---
 
-*Autor: Maciej Myśliwiec, 2026. Autorskie prawa osobiste (prawo do autorstwa)
-niezbywalne — art. 16 pr. aut. Szczegóły: `AUTORSTWO.md`.*
+*Autor: Maciej Myśliwiec, 2026.*

@@ -11,6 +11,10 @@ package pl.dzi.portal.datasets;
 
 import org.springframework.data.annotation.Id;
 import org.springframework.data.relational.core.mapping.Table;
+/**
+ *   Portal DZI — wewnętrzny portal kafelkowy departamentu DZI.
+ *   Autor: Maciej Myśliwiec, 2026.
+ *   */
 
 @Table("datasets")
 record Dataset(

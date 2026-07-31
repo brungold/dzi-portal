@@ -1,10 +1,4 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<!--
-  Portal DZI — wewnętrzny portal kafelkowy departamentu DZI.
-  Autor: Maciej Myśliwiec, 2026.
-  Autorskie prawa osobiste (prawo do autorstwa) niezbywalne — art. 16 pr. aut.
-  Nie usuwać tej informacji przy kopiowaniu ani modyfikacji pliku.
--->
 <project xmlns="http://maven.apache.org/POM/4.0.0"
          xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
          xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
@@ -34,3 +28,7 @@
         </dependency>
     </dependencies>
 </project>
+<!--
+Portal DZI — wewnętrzny portal kafelkowy departamentu DZI.
+Autor: Maciej Myśliwiec, 2026.
+-->

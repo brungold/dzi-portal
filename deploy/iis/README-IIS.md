@@ -38,5 +38,4 @@ Bez tego reguła z `<serverVariables>` zostanie odrzucona.
 
 ---
 
-*Autor: Maciej Myśliwiec, 2026. Autorskie prawa osobiste (prawo do autorstwa)
-niezbywalne — art. 16 pr. aut. Szczegóły: `AUTORSTWO.md`.*
+*Autor: Maciej Myśliwiec, 2026.*
