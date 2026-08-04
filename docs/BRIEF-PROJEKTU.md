@@ -30,22 +30,26 @@ przeglądarka ──Kerberos──> IIS (portal.dzi.pl) ──X-Auth-User──>
 w runtime jest organizacyjnie niedostępna:
 
 ```
-klient (przeglądarka / skrypt PS) ──X-Auth-User: login──> API (loopback + lista CIDR)
-                                                            │ user_departments (SQL) → grupy
+klient (przeglądarka / skrypt PS) ──X-Auth-User + X-Auth-Dept──> API (loopback + CIDR)
+                                                            │ uprawnienia = {login, dept, wszyscy}
+                                                            │ vs tile_permissions
                                                   SQL Server ── portal-worker → powershell.exe
 ```
 
-Zasada, której **nie wolno upraszczać z powrotem**: klient deklaruje wyłącznie login.
-Departament, przynależność i uprawnienia wyprowadza serwer. Model „klient przysyła
-departament, serwer sprawdza czy istnieje" oraz endpoint „verify" interpretowany przez
-skrypt kliencki zostały odrzucone na stałe — decyzja wykonywana na maszynie użytkownika
-nie jest kontrolą dostępu (OWASP A01 + A04 + A09). Uzasadnienie: `docs/adr/0003`.
+**ADR-0005 (03.08.2026):** departament jest DEKLAROWANY drugim nagłówkiem (skrót
+z AD `extensionattribute12`: dzi/dag/dpb…), serwer niczego nie sprawdza w katalogu
+ani w bazie. Powód: skala (4 tys. centrala → 11,5 tys. organizacja) czyni rejestr
+`user_departments` i jego synchronizację z kadrami kosztem nie do przyjęcia.
+Decyzję o dostępie do każdego zasobu API nadal podejmuje SERWER (porównanie
+z `tile_permissions`) — po stronie klienta nie ma żadnej logiki dostępu.
 
-Granice tego trybu: tożsamość jest deklaracją, nie dowodem — chroni przed „wpiszę
-departament i wejdę" oraz przed nieznanym loginem (fail-closed), **nie chroni** przed
-podszyciem się pod znany login z zaufanej podsieci. Stąd zakaz: żadnych danych osobowych,
-finansowych ani kadrowych za kafelkami w tym trybie. Osobno: statyczne powłoki HTML
-kafelków APLIKACJA widzi każdy uwierzytelniony — treść wrażliwa mieszka za `/api`.
+Granice, nazwane wprost: kafelek jest widoczny dla każdego, kto zna adres portalu
+i wpisze właściwy skrót departamentu; `wszyscy` = dosłownie każdy, kto dotrze do
+portalu. `tile_permissions` PORZĄDKUJE widoczność, nie chroni danych. Warunki
+przyjęcia: sieć wewnętrzna (monitorowana), ZAKAZ danych osobowych, finansowych
+i kadrowych za kafelkami. Kompensacje z ADR-0003 zostają: loopback/CIDR, limiter
+anomalii, audyt każdej deklaracji (login, departament, adres). Osobno: statyczne
+powłoki HTML kafelków APLIKACJA widzi każdy — treść wrażliwa mieszka za `/api`.
 
 ## 3. Źródło prawdy
 
@@ -70,6 +74,7 @@ kafelków APLIKACJA widzi każdy uwierzytelniony — treść wrażliwa mieszka z
 | 36 | fix: checksumy Flyway — ZAKAZ nagłówków autorstwa w `db/migration/**` |
 | 37 | fix: wzorce statyki dev (`/css/**`, `/js/**`, `/apps/**`) |
 | 38 | **profil `declared`** (ADR-0003): filtr nagłówka, limiter anomalii, resolver grup z SQL, konfiguracja security, migracja V4 (`user_departments`), `application-declared.yml`, testy, skrypt eksportu z AD, runbook |
+| 41 | **deklarowany departament** (ADR-0005): drugi nagłówek `X-Auth-Dept`, uprawnienia {login, dept, wszyscy} bez rejestru użytkowników; okno z polem departamentu; klient `portal-client.ps1`; usunięty `DeclaredDbGroupResolver`; `user_departments`+V4 zostają nieużywane |
 | — | ADR-0004: fizyczne usunięcie profilu `demo` (9 plików); `prod,demo` nie jest już dostępne jako tryb testowy bez bazy |
 
 ## 5. Środowisko dev (laptop)
@@ -80,8 +85,8 @@ kafelków APLIKACJA widzi każdy uwierzytelniony — treść wrażliwa mieszka z
 - Profile uruchomieniowe: `dev` (klasycznie) albo `dev,declared` (tryb deklarowany).
   Working directory = katalog modułu (`portal-api` / `portal-worker`) — ścieżki
   do frontendu i skryptów są **względne**.
-- W `dev,declared` dev-fallback (`tester`) **nie działa** — deklarację trzeba przysłać
-  jawnie nagłówkiem. Bez wpisów w `user_departments` każdy login dostaje 403 (poprawnie).
+- W `dev,declared` dev-fallback (`tester`) **nie działa** — deklarację (login
+  + departament) trzeba przysłać jawnie nagłówkami.
 - **Tryb bez bazy nie istnieje.** Profil `demo` usunięty (ADR-0004) — start bez bazy
   kończy się fail-fast. To świadomy koszt tej linii źródeł.
 - URL: `http://localhost:8080/index.html`.
@@ -111,9 +116,12 @@ kafelków APLIKACJA widzi każdy uwierzytelniony — treść wrażliwa mieszka z
 
 - **Wariant A:** kto należy do roli → AD (grupy `DZI-Portal-*`). Co rola może → SQL
   (`tile_permissions`).
-- **Wariant deklarowany:** kto czym jest → tabela `user_departments` (prowizja przez
-  `deploy/declared/export-user-departments.ps1` — eksport z AD wykonywany przez
-  administratora ze stacji, nie w runtime). Co rola może → SQL (`tile_permissions`).
+- **Wariant deklarowany (ADR-0005):** kto czym jest → DEKLARACJA klienta (login
+  + skrót departamentu z AD `extensionattribute12`). Co kto może → SQL
+  (`tile_permissions.ad_group` = skrót departamentu ALBO login — można mieszać,
+  np. cały `dag` + dwie osoby imiennie; `wszyscy` = kafelek publiczny).
+  Portal nie prowadzi rejestru użytkowników; `export-user-departments.ps1`
+  pozostaje w repo jako narzędzie nieaktywnego wariantu z rejestrem.
 - Serwer aplikacyjny: nic. Próg panelu admina (Etap 7): >15–20 kafelków albo zmiany
   częściej niż raz na miesiąc.
 
@@ -127,6 +135,9 @@ kafelków APLIKACJA widzi każdy uwierzytelniony — treść wrażliwa mieszka z
   witryna IIS + reguła rewrite `/api`, weryfikacja, dane (`user_departments`, `tiles`,
   `tile_permissions`), worker, test restartu. **Dziennik wdrożenia prowadzony poza
   repozytorium** (dyscyplina bus-factor-2: konta imienne, wpis po każdej fazie).
+- **Rozstrzygnięte 03.08.2026 (ADR-0005): deklarowany departament.** Drugi nagłówek
+  `X-Auth-Dept`; uprawnienia żądania {login, dept, wszyscy}; bez rejestru
+  użytkowników. Warunki: sieć wewnętrzna, zakaz danych wrażliwych. Paczka 41.
 - **Rozstrzygnięte 31.07.2026: tożsamość deklarowana przez klienta (skrypt PowerShell).**
   Witryna IIS **bez Windows Authentication** — wyłącznie terminator TLS i reverse proxy;
   nagłówek `X-Auth-User` przychodzi od klienta i IIS go **nie nadpisuje** (odwrotnie niż

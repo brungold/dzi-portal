@@ -16,7 +16,8 @@ import java.time.Duration;
 import java.util.List;
 
 /**
- * Ustawienia profilu {@code declared} (deklarowana tożsamość — ADR-0003).
+ * Ustawienia profilu {@code declared} (deklarowana tożsamość — ADR-0003,
+ * model przynależności: ADR-0005 — deklarowany departament).
  *
  * Bezpieczny default: {@code allowedCidrs} PUSTE, czyli deklaracje przyjmowane
  * wyłącznie z loopbacku (zachowanie identyczne jak wariant A). Otwarcie na sieć
@@ -32,6 +33,9 @@ import java.util.List;
  *                              jeszcze za normalne; przekroczenie = sygnatura podszywania
  * @param anomalyWindow         okno obserwacji dla powyższego licznika
  * @param blockDuration         czas blokady adresu po wykryciu anomalii
+ * @param deptHeader            nazwa nagłówka z DEKLAROWANYM departamentem (ADR-0005);
+ *                              wartość = skrót z AD extensionattribute12 (dzi/dag/dpb…),
+ *                              normalizowana do małych liter po stronie serwera
  */
 @ConfigurationProperties(prefix = "portal.security.declared")
 record DeclaredIdentityProperties(
@@ -39,5 +43,6 @@ record DeclaredIdentityProperties(
         @DefaultValue("120") int maxRequestsPerMinute,
         @DefaultValue("3") int anomalyDistinctLogins,
         @DefaultValue("10m") Duration anomalyWindow,
-        @DefaultValue("15m") Duration blockDuration) {
+        @DefaultValue("15m") Duration blockDuration,
+        @DefaultValue("X-Auth-Dept") String deptHeader) {
 }

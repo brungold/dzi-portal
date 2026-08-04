@@ -4,7 +4,8 @@
 # Autorskie prawa osobiste (prawo do autorstwa) niezbywalne — art. 16 pr. aut.
 # Nie usuwać tej informacji przy kopiowaniu ani modyfikacji pliku.
 # ======================================================================
-# Profil DECLARED — deklarowana tożsamość (ADR-0003, docs/deklaracja-runbook.md).
+# Profil DECLARED — deklarowana tożsamość: ADR-0003 (granice zaufania, limiter)
+# + ADR-0005 (deklarowany departament). Szczegóły: docs/deklaracja-runbook.md.
 #
 # Bezpieczny default = zachowanie identyczne z dotychczasowym: nasłuch tylko na
 # loopbacku (server.address z application.yml) i puste allowed-cidrs. Otwarcie
@@ -34,3 +35,6 @@ portal:
       anomaly-distinct-logins: 3
       anomaly-window: 10m
       block-duration: 15m
+      # Nagłówek z deklarowanym departamentem (skrót z AD extensionattribute12,
+      # np. dzi/dag/dpb; serwer normalizuje do małych liter). ADR-0005.
+      dept-header: X-Auth-Dept

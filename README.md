@@ -25,26 +25,29 @@ przeglądarka ──Kerberos/443──> IIS (portal.dzi.pl)
 jest organizacyjnie niedostępna):
 
 ```
-klient (przeglądarka / skrypt PS) ──X-Auth-User: login──> portal-api (loopback + lista CIDR)
-                                                            │  departament z tabeli user_departments
-                                                            │  (login = JEDYNA rzecz deklarowana)
+klient (przeglądarka / skrypt PS) ──X-Auth-User + X-Auth-Dept──> portal-api (loopback + lista CIDR)
+                                                            │  uprawnienia żądania:
+                                                            │  {login, departament, wszyscy} → tile_permissions
                                                  SQL Server (tiles/tasks/datasets/audit)
                                                             │
                                                      portal-worker ──> powershell.exe
 ```
 
-Tożsamość jest tu **deklaracją, nie dowodem**. Granice modelu, kompensacje
-(fail-closed, limiter anomalii, dwa przełączniki otwarcia na sieć) oraz twarde
-zakazy — `docs/adr/0003-deklarowana-tozsamosc.md`. Uruchomienie i użycie —
-`docs/deklaracja-runbook.md`.
+Tożsamość jest tu **deklaracją, nie dowodem** — łącznie z departamentem
+(ADR-0005): kafelek jest widoczny dla każdego, kto zna adres portalu i wpisze
+właściwy skrót. `tile_permissions` porządkuje widoczność, nie chroni danych;
+stąd bezwzględny zakaz danych wrażliwych. Granice zaufania, limiter anomalii
+i audyt — `docs/adr/0003-deklarowana-tozsamosc.md` + `docs/adr/0005-deklarowany-departament.md`.
+Uruchomienie i użycie — `docs/deklaracja-runbook.md`.
 
 ## Co portal robi
 
 - **Tożsamość ustalana na brzegu, nie w aplikacji**: w wariancie A Kerberos robi IIS,
   a aplikacja ufa nagłówkowi `X-Auth-User` wyłącznie z loopbacku (3 warstwy ochrony;
   test anty-spoof w `deploy/iis/verify-etap1.ps1`). W wariancie `declared` ten sam
-  nagłówek niesie samą deklarację loginu — chronioną loopbackiem, jawną listą CIDR
-  i limiterem wykrywającym wiele loginów z jednego adresu.
+  nagłówek (plus drugi: `X-Auth-Dept`) niesie deklarację loginu i departamentu —
+  chronioną loopbackiem, jawną listą CIDR i limiterem wykrywającym wiele loginów
+  z jednego adresu.
 - **Kafelki z dwustronnym RBAC**: lista filtrowana po przynależności użytkownika
   (grupy AD albo `user_departments`; READ<EXECUTE<EDIT),
   a każda akcja twardo egzekwowana `@PreAuthorize` + `AccessFacade` (403 + DENIED w audycie).
@@ -82,12 +85,14 @@ zakazy — `docs/adr/0003-deklarowana-tozsamosc.md`. Uruchomienie i użycie —
   Spring serwuje frontend z `../frontend`.
 - **prod** — bind wyłącznie 127.0.0.1, integrated security (gMSA), grupy z LDAPS
   (jedyny sekret: konto read-only, env w WinSW), graceful shutdown; frontend serwuje IIS.
-- **declared** — tożsamość deklarowana (ADR-0003): źródłem loginu jest nagłówek
-  `X-Auth-User`, przynależność wyprowadza serwer z tabeli `user_departments`.
+- **declared** — tożsamość deklarowana (ADR-0003 + ADR-0005): klient deklaruje
+  login (`X-Auth-User`) i skrót departamentu (`X-Auth-Dept`, jak w AD
+  `extensionattribute12`); uprawnienia żądania = {login, departament, wszyscy}
+  porównywane z `tile_permissions` — czyli dostępy nadaje się departamentowi,
+  loginowi imiennie albo miksem, bez rejestru użytkowników po stronie portalu.
   Bez LDAP, bez gMSA, bez sekretów. Domyślnie tylko loopback; otwarcie na sieć wymaga
   **dwóch** przełączników w `application-declared.yml` (`server.address` ORAZ
   `allowed-cidrs`). **Nie łączyć z profilem `prod`** — prod aktywuje LDAP.
-  Nieznany login = pusty zbiór grup = 403 (fail-closed).
 
 ## Deployment i eksploatacja
 
@@ -95,10 +100,11 @@ zakazy — `docs/adr/0003-deklarowana-tozsamosc.md`. Uruchomienie i użycie —
 
 - **wariant A (z AD):** `docs/etap1-runbook.md` (Kerberos/IIS/gMSA/LDAP/usługa),
   potem `docs/etap6-runbook.md`;
-- **wariant deklarowany:** `docs/deklaracja-runbook.md` (uruchomienie, prowizja
-  `user_departments`, klient PowerShell, zakres ochrony). Z runbooków Etapu 1/6
-  obowiązują wtedy wyłącznie części niezwiązane z AD — kroki Kerberos/SPN/gMSA/LDAP
-  **nie mają zastosowania**. Prowizja przynależności: `deploy/declared/export-user-departments.ps1`.
+- **wariant deklarowany:** `docs/deklaracja-runbook.md` (uruchomienie, nadawanie
+  uprawnień per departament/login, klient PowerShell, zakres ochrony). Z runbooków
+  Etapu 1/6 obowiązują wtedy wyłącznie części niezwiązane z AD — kroki
+  Kerberos/SPN/gMSA/LDAP **nie mają zastosowania**. Klient:
+  `deploy/declared/portal-client.ps1` (login i departament czyta z AD stacji).
 
 Wspólne dla obu: `docs/etap6-runbook.md` w części worker/NTFS/retencja/
 **obowiązkowy test rollbacku**. Narzędzia: `deploy/deploy.ps1` (z automatycznym rollbackiem),
@@ -111,6 +117,8 @@ szablony WinSW w `deploy/winsw/`, retencja w `deploy/sql/audit-retention.sql`.
 - `docs/adr/0002-hardening-i-odswiezanie.md` — ETag, retencja, hardening (Etap 6)
 - `docs/adr/0003-deklarowana-tozsamosc.md` — profil `declared`; uzupełnia ADR-0001 dec. 6 i 7
 - `docs/adr/0004-wariant-bez-demo.md` — fizyczne usunięcie profilu `demo` z tej linii źródeł
+- `docs/adr/0005-deklarowany-departament.md` — departament deklarowany zamiast rejestru
+  `user_departments`; uzasadnienie skalą (4–11,5 tys. użytkowników) i granice modelu
 - `docs/etapy/README-ETAP1..6.md` + `README-POPRAWKI-31/32.md` — pełna historia z planem
   **32 commitów**: etapy budowy (1–30) oraz dwa commity poprawkowe z przeglądu seniorskiego
   (izolacja testów FIRST, SID-y dla polskiej lokalizacji, 400 dla złych wejść, drobne DRY/perf).
@@ -132,7 +140,7 @@ szablony WinSW w `deploy/winsw/`, retencja w `deploy/sql/audit-retention.sql`.
    kto przejdzie filtr tożsamości.** RBAC chroni `/api`, nie pliki statyczne. Treść
    wrażliwa ma mieszkać wyłącznie za endpointami `/api` — nigdy w samym HTML-u kafelka.
 
-## Stan po commitach 33–40
+## Stan po commitach 33–41
 
 - **33** — profil `demo`: portal bez bazy (in-memory za interfejsami repo, symulator zadań,
   audyt do logu). **W tym wariancie źródeł profil usunięty** — decyzja i skutki: `docs/adr/0004-wariant-bez-demo.md`.
@@ -155,6 +163,12 @@ szablony WinSW w `deploy/winsw/`, retencja w `deploy/sql/audit-retention.sql`.
   zapamiętuje login (localStorage) i dokłada `X-Auth-User` do wywołań `/api`;
   w wariancie A / dev (sonda 200) jest przezroczysta. `portal-app.js`,
   `portal-bootstrap.js` i inline-skrypt `dataset.html` — nietknięte.
+- **41** — **deklarowany departament** (ADR-0005): drugi nagłówek `X-Auth-Dept`,
+  uprawnienia żądania = {login, departament, wszyscy} wprost z deklaracji (bez
+  zapytań do bazy o przynależność), okno w przeglądarce z polem departamentu
+  i podpowiedzią o formacie loginu, klient `deploy/declared/portal-client.ps1`.
+  Usunięte: `DeclaredDbGroupResolver` (+test). Tabela `user_departments` i V4
+  zostają nieużywane — droga powrotna do modelu z rejestrem / wariantu A.
 
 Historia per commit: `docs/etapy/`. Brief dla nowych sesji pracy: `docs/BRIEF-PROJEKTU.md`.
 

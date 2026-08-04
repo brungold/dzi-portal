@@ -24,17 +24,27 @@ import pl.dzi.portal.infrastructure.web.ClientIpResolver;
 import pl.dzi.portal.infrastructure.web.PortalRequestAttributes;
 
 import java.io.IOException;
+import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Locale;
 import java.util.Set;
+import java.util.regex.Pattern;
 
 /**
- * Profil {@code declared}: tożsamość jest DEKLAROWANA nagłówkiem przez klienta
- * (skrypt PowerShell, przeglądarka), NIE uwierzytelniana — patrz ADR-0003.
+ * Profil {@code declared}: tożsamość jest DEKLAROWANA nagłówkami przez klienta
+ * (skrypt PowerShell, przeglądarka), NIE uwierzytelniana — ADR-0003 (granice
+ * zaufania, limiter, audyt) + ADR-0005 (model przynależności).
  *
- * Klient deklaruje WYŁĄCZNIE login. Wszystko, co ma skutki autoryzacyjne
- * (departamenty, uprawnienia do kafelków), serwer wyprowadza sam:
- * login -> user_departments (baza) -> tile_permissions -> AccessFacade.
- * Departament przysłany w żądaniu nie istnieje w tym modelu — nie ma czego fałszować.
+ * Klient deklaruje LOGIN ({@code X-Auth-User}) i DEPARTAMENT ({@code X-Auth-Dept},
+ * skrót z AD extensionattribute12). Serwer NICZEGO nie weryfikuje w katalogu ani
+ * w bazie — zbiór uprawnień żądania to {login, departament, "wszyscy"}, porównywany
+ * z tile_permissions.ad_group (AccessFacade, case-insensitive). Dzięki temu
+ * uprawnienia kafelka nadaje się departamentowi, loginowi imiennie albo miksem —
+ * bez rejestru użytkowników po stronie portalu (uzasadnienie skali: ADR-0005).
+ *
+ * Konsekwencja wprost: kafelek jest widoczny dla każdego, kto zna adres portalu
+ * i wpisze właściwy departament. tile_permissions PORZĄDKUJE widoczność, nie chroni
+ * danych — stąd bezwzględny zakaz danych wrażliwych w tym trybie.
  *
  * Różnice względem LoopbackHeaderAuthenticationFilter (wariant A, prod):
  *  - zaufanie: loopback LUB skonfigurowane CIDR-y (puste CIDR-y = tylko loopback),
@@ -47,17 +57,24 @@ import java.util.Set;
 @Slf4j
 final class DeclaredHeaderAuthenticationFilter extends OncePerRequestFilter {
 
-    private final AdGroupResolver groupResolver;
+    /** Syntetyczna grupa doklejana każdej deklaracji — kafelek "dla wszystkich"
+     *  to jeden wiersz tile_permissions z ad_group='wszyscy'. Po ADR-0005 oznacza
+     *  KAŻDEGO, kto dotrze do portalu (nie ma już rejestru "znanych" loginów). */
+    static final String GROUP_EVERYONE = "wszyscy";
+
+    /** Format skrótu departamentu po normalizacji (małe litery, bez spacji). */
+    private static final Pattern DEPT_PATTERN = Pattern.compile("[a-z0-9._-]{1,64}");
+
     private final PortalSecurityProperties securityProperties;
+    private final DeclaredIdentityProperties declaredProperties;
     private final DeclaredRateLimiter rateLimiter;
     private final List<IpAddressMatcher> trustedRanges;
 
-    DeclaredHeaderAuthenticationFilter(AdGroupResolver groupResolver,
-                                       PortalSecurityProperties securityProperties,
+    DeclaredHeaderAuthenticationFilter(PortalSecurityProperties securityProperties,
                                        DeclaredIdentityProperties declaredProperties,
                                        DeclaredRateLimiter rateLimiter) {
-        this.groupResolver = groupResolver;
         this.securityProperties = securityProperties;
+        this.declaredProperties = declaredProperties;
         this.rateLimiter = rateLimiter;
         this.trustedRanges = declaredProperties.allowedCidrs().stream()
                 .map(IpAddressMatcher::new)
@@ -98,7 +115,7 @@ final class DeclaredHeaderAuthenticationFilter extends OncePerRequestFilter {
             return; // 429 -> AuditFilter zapisze wpis ERROR z deklarowanym loginem i adresem
         }
 
-        Set<String> groups = groupResolver.resolveGroups(login);
+        Set<String> groups = declaredAuthorities(login, extractDepartment(request));
         var principal = new PortalUser(login, groups);
         var authorities = groups.stream().map(SimpleGrantedAuthority::new).toList();
         var authentication = new PreAuthenticatedAuthenticationToken(principal, "N/A", authorities);
@@ -117,8 +134,8 @@ final class DeclaredHeaderAuthenticationFilter extends OncePerRequestFilter {
 
     /**
      * "DZI\jkowalski" -> "jkowalski"; "jkowalski@dzi.pl" -> "jkowalski".
-     * Świadoma kopia prywatnej metody z LoopbackHeaderAuthenticationFilter — wyniesienie
-     * wymagałoby zmiany pliku wariantu A, a paczka 38 nie dotyka istniejących plików.
+     * Małe litery: konwencja całego modelu (tile_permissions, audyt) — dzięki temu
+     * uprawnienia imienne nie zależą od wielkości liter przysłanej przez klienta.
      */
     private static String extractSamAccountName(String raw) {
         String value = raw.trim();
@@ -130,7 +147,38 @@ final class DeclaredHeaderAuthenticationFilter extends OncePerRequestFilter {
         if (at > 0) {
             value = value.substring(0, at);
         }
-        return value;
+        return value.toLowerCase(Locale.ROOT);
+    }
+
+    /**
+     * Deklarowany departament z nagłówka (ADR-0005): trim + małe litery.
+     * Brak nagłówka = deklaracja samego loginu (uprawnienia: {login, wszyscy}).
+     * Wartość poza formatem (spacje, polskie znaki — np. wklejona pełna nazwa
+     * zamiast skrótu) jest IGNOROWANA z ostrzeżeniem w logu: użytkownik dostanie
+     * mniej kafelków, a nie zagadkowy błąd — objaw jest widoczny i diagnozowalny.
+     */
+    private String extractDepartment(HttpServletRequest request) {
+        String raw = request.getHeader(declaredProperties.deptHeader());
+        if (raw == null || raw.isBlank()) {
+            return null;
+        }
+        String dept = raw.trim().toLowerCase(Locale.ROOT);
+        if (!DEPT_PATTERN.matcher(dept).matches()) {
+            log.warn("Zignorowano deklarowany departament w złym formacie: '{}' (oczekiwany skrót, np. dzi)", raw);
+            return null;
+        }
+        return dept;
+    }
+
+    /** Zbiór uprawnień żądania: {login, departament?, wszyscy} — patrz javadoc klasy. */
+    private static Set<String> declaredAuthorities(String login, String dept) {
+        var groups = new LinkedHashSet<String>();
+        groups.add(login);
+        if (dept != null) {
+            groups.add(dept);
+        }
+        groups.add(GROUP_EVERYONE);
+        return Set.copyOf(groups);
     }
 
     private static void writeProblem(HttpServletResponse response, int status, String title) throws IOException {

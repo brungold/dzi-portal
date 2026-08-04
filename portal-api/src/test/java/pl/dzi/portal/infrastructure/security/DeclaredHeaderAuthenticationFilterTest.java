@@ -22,15 +22,13 @@ import pl.dzi.portal.infrastructure.web.PortalRequestAttributes;
 import java.time.Clock;
 import java.time.Duration;
 import java.util.List;
-import java.util.Set;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
 class DeclaredHeaderAuthenticationFilterTest {
 
     private static final String HEADER = "X-Auth-User";
-
-    private final AdGroupResolver resolver = samAccountName -> Set.of("dzi", "wszyscy");
+    private static final String DEPT_HEADER = "X-Auth-Dept";
 
     @AfterEach
     void clearSecurityContext() {
@@ -42,20 +40,21 @@ class DeclaredHeaderAuthenticationFilterTest {
         // given
         var filter = filter(List.of("10.20.0.0/16"));
         var request = requestFrom("10.20.1.5");
-        request.addHeader(HEADER, "DZI\\jkowalski");
+        request.addHeader(HEADER, "DZI\\JKowalski");
+        request.addHeader(DEPT_HEADER, "DZI");
         var response = new MockHttpServletResponse();
         var chain = new MockFilterChain();
 
         // when
         filter.doFilter(request, response, chain);
 
-        // then
+        // then: login znormalizowany, uprawnienia = login+departament+wszyscy (ADR-0005)
         Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
         assertThat(authentication).isNotNull();
         assertThat(((PortalUser) authentication.getPrincipal()).login()).isEqualTo("jkowalski");
         assertThat(authentication.getAuthorities())
                 .extracting(GrantedAuthority::getAuthority)
-                .containsExactlyInAnyOrder("dzi", "wszyscy");
+                .containsExactlyInAnyOrder("jkowalski", "dzi", "wszyscy");
         assertThat(chain.getRequest()).as("żądanie poszło dalej w łańcuch").isNotNull();
         assertThat(request.getAttribute(PortalRequestAttributes.USERNAME)).isEqualTo("jkowalski");
     }
@@ -71,6 +70,35 @@ class DeclaredHeaderAuthenticationFilterTest {
         filter.doFilter(request, response, new MockFilterChain());
 
         assertThat(SecurityContextHolder.getContext().getAuthentication()).isNotNull();
+    }
+
+    @Test
+    void should_grant_only_login_and_everyone_when_dept_header_missing() throws Exception {
+        // deklaracja samego loginu: kafelki imienne i 'wszyscy' działają, departamentowe nie
+        var filter = filter(List.of());
+        var request = requestFrom("127.0.0.1");
+        request.addHeader(HEADER, "jkowalski");
+
+        filter.doFilter(request, new MockHttpServletResponse(), new MockFilterChain());
+
+        assertThat(SecurityContextHolder.getContext().getAuthentication().getAuthorities())
+                .extracting(GrantedAuthority::getAuthority)
+                .containsExactlyInAnyOrder("jkowalski", "wszyscy");
+    }
+
+    @Test
+    void should_ignore_department_in_invalid_format() throws Exception {
+        // pełna nazwa zamiast skrótu (spacje, polskie znaki) -> departament pominięty, nie błąd
+        var filter = filter(List.of());
+        var request = requestFrom("127.0.0.1");
+        request.addHeader(HEADER, "jkowalski");
+        request.addHeader(DEPT_HEADER, "Departament Zarządzania Informatyką");
+
+        filter.doFilter(request, new MockHttpServletResponse(), new MockFilterChain());
+
+        assertThat(SecurityContextHolder.getContext().getAuthentication().getAuthorities())
+                .extracting(GrantedAuthority::getAuthority)
+                .containsExactlyInAnyOrder("jkowalski", "wszyscy");
     }
 
     @Test
@@ -114,7 +142,7 @@ class DeclaredHeaderAuthenticationFilterTest {
         var strictLimiter = new DeclaredRateLimiter(
                 properties(List.of(), 1), Clock.systemUTC());
         var filter = new DeclaredHeaderAuthenticationFilter(
-                resolver, securityProperties(), properties(List.of(), 1), strictLimiter);
+                securityProperties(), properties(List.of(), 1), strictLimiter);
 
         var first = requestFrom("127.0.0.1");
         first.addHeader(HEADER, "jkowalski");
@@ -140,7 +168,6 @@ class DeclaredHeaderAuthenticationFilterTest {
     private DeclaredHeaderAuthenticationFilter filter(List<String> allowedCidrs) {
         var declaredProperties = properties(allowedCidrs, 1000);
         return new DeclaredHeaderAuthenticationFilter(
-                resolver,
                 securityProperties(),
                 declaredProperties,
                 new DeclaredRateLimiter(declaredProperties, Clock.systemUTC()));
@@ -148,7 +175,8 @@ class DeclaredHeaderAuthenticationFilterTest {
 
     private static DeclaredIdentityProperties properties(List<String> allowedCidrs, int maxPerMinute) {
         return new DeclaredIdentityProperties(
-                allowedCidrs, maxPerMinute, 3, Duration.ofMinutes(10), Duration.ofMinutes(15));
+                allowedCidrs, maxPerMinute, 3, Duration.ofMinutes(10), Duration.ofMinutes(15),
+                DEPT_HEADER);
     }
 
     private static PortalSecurityProperties securityProperties() {

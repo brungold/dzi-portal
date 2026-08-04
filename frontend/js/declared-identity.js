@@ -21,8 +21,9 @@
  *            — moduł nic nie robi, okno nigdy się nie pokazuje,
  *  - 401  -> tryb declared — okno deklaracji, login do localStorage, nagłówek do /api.
  *
- * Klient deklaruje WYŁĄCZNIE login (ADR-0003). Normalizacja lustrzana do serwera:
- * "DZI\jkowalski" / "jkowalski@dzi.pl" -> "jkowalski", małe litery (CHECK w V4).
+ * Klient deklaruje LOGIN i DEPARTAMENT (ADR-0005) — skrót jak w AD
+ * extensionattribute12 (dzi/dag/dpb). Normalizacja lustrzana do serwera:
+ * "DZI\jkowalski" / "jkowalski@dzi.pl" -> "jkowalski", małe litery.
  * 401 przy ustawionym loginie = serwer odrzucił deklarację (np. spoza zaufanych
  * zakresów) -> czyścimy zapis, prosimy ponownie, po zatwierdzeniu przeładowanie.
  *
@@ -33,30 +34,46 @@
     'use strict';
 
     var HEADER = 'X-Auth-User';                    // = portal.security.header (application-declared.yml)
+    var DEPT_HEADER = 'X-Auth-Dept';               // = portal.security.declared.dept-header (ADR-0005)
     var STORAGE_KEY = 'dzi-portal.declared-login';
+    var STORAGE_DEPT = 'dzi-portal.declared-dept';
     var WHOAMI_URL = '/api/whoami';
 
     var originalFetch = window.fetch.bind(window);
     var pamiec = null;          // zapasowy magazyn, gdy localStorage niedostępny
+    var pamiecDept = null;
     var tryb = null;            // null = nieustalony, 'transparent' | 'declared'
     var gotowosc = null;        // Promise<string|null> — login albo null (tryb przezroczysty)
     var przeladowanieWToku = false;
 
     /* ===== magazyn loginu ===== */
 
-    function odczytajLogin() {
-        try { return window.localStorage.getItem(STORAGE_KEY) || pamiec; }
-        catch (bez) { return pamiec; }
+    function odczytaj(klucz, zapas) {
+        try { return window.localStorage.getItem(klucz) || zapas; }
+        catch (bez) { return zapas; }
     }
 
-    function zapiszLogin(login) {
+    function zapisz(klucz, wartosc) {
+        try { window.localStorage.setItem(klucz, wartosc); } catch (bez) { /* tryb prywatny itp. */ }
+    }
+
+    function odczytajLogin() { return odczytaj(STORAGE_KEY, pamiec); }
+    function odczytajDept()  { return odczytaj(STORAGE_DEPT, pamiecDept); }
+
+    function zapiszTozsamosc(login, dept) {
         pamiec = login;
-        try { window.localStorage.setItem(STORAGE_KEY, login); } catch (bez) { /* tryb prywatny itp. */ }
+        pamiecDept = dept;
+        zapisz(STORAGE_KEY, login);
+        zapisz(STORAGE_DEPT, dept);
     }
 
     function wyczyscLogin() {
         pamiec = null;
-        try { window.localStorage.removeItem(STORAGE_KEY); } catch (bez) { /* jw. */ }
+        pamiecDept = null;
+        try {
+            window.localStorage.removeItem(STORAGE_KEY);
+            window.localStorage.removeItem(STORAGE_DEPT);
+        } catch (bez) { /* jw. */ }
     }
 
     /* ===== normalizacja i walidacja (lustro DeclaredHeaderAuthenticationFilter + CHECK z V4) ===== */
@@ -79,6 +96,14 @@
         return null;
     }
 
+    function bladWalidacjiDept(dept) {
+        if (!dept) { return 'Podaj skrót departamentu (np. dzi).'; }
+        if (dept.length > 64 || !/^[a-z0-9._-]+$/.test(dept)) {
+            return 'Departament to krótki skrót: małe litery/cyfry, bez spacji i polskich znaków.';
+        }
+        return null;
+    }
+
     /* ===== rozpoznanie żądań do API ===== */
 
     function czyApi(wejscie) {
@@ -94,10 +119,13 @@
         }
     }
 
-    function zNaglowkiem(wejscie, opcje, login) {
+    function zNaglowkiem(wejscie, opcje, tozsamosc) {
         var naglowki = new Headers(
                 (opcje && opcje.headers) || (wejscie && wejscie.headers) || undefined);
-        naglowki.set(HEADER, login);
+        naglowki.set(HEADER, tozsamosc.login);
+        if (tozsamosc.dept) {
+            naglowki.set(DEPT_HEADER, tozsamosc.dept);
+        }
         var nowe = Object.assign({}, opcje || {});
         nowe.headers = naglowki;
         return nowe;
@@ -140,9 +168,10 @@
         var opis = styl(document.createElement('p'), {
             margin: '0 0 14px', fontSize: '13px', lineHeight: '1.5', color: '#5E6E67'
         });
-        opis.textContent = 'Podaj swój login domenowy. Portal działa w trybie deklarowanej '
-                + 'tożsamości: dostęp wynika z przypisania loginu do departamentu po stronie '
-                + 'serwera, a każda deklaracja i jej adres są zapisywane w rejestrze audytu.';
+        opis.textContent = 'Podaj login domenowy i skrót swojego departamentu. Portal działa '
+                + 'w trybie deklarowanej tożsamości: to deklaracja decyduje, które kafelki '
+                + 'widzisz, a każde wejście (kto, departament, adres) jest zapisywane '
+                + 'w rejestrze audytu.';
 
         var etykieta = styl(document.createElement('label'), {
             display: 'block', fontSize: '12px', fontWeight: '600', marginBottom: '4px'
@@ -150,17 +179,38 @@
         etykieta.textContent = 'Login';
         etykieta.htmlFor = 'deklaracja-login';
 
-        var pole = styl(document.createElement('input'), {
-            display: 'block', width: '100%', boxSizing: 'border-box',
-            padding: '9px 11px', fontSize: '14px', color: '#16241E',
-            border: '1px solid #E1EAE5', borderRadius: '10px', outline: 'none'
-        });
-        pole.type = 'text';
-        pole.id = 'deklaracja-login';
-        pole.autocomplete = 'username';
-        pole.spellcheck = false;
-        pole.placeholder = 'np. jkowalski';
+        function poleTekstowe(id, placeholder, autocomplete) {
+            var el = styl(document.createElement('input'), {
+                display: 'block', width: '100%', boxSizing: 'border-box',
+                padding: '9px 11px', fontSize: '14px', color: '#16241E',
+                border: '1px solid #E1EAE5', borderRadius: '10px', outline: 'none'
+            });
+            el.type = 'text';
+            el.id = id;
+            el.autocomplete = autocomplete;
+            el.spellcheck = false;
+            el.placeholder = placeholder;
+            return el;
+        }
+
+        var pole = poleTekstowe('deklaracja-login', 'np. jkowalski', 'username');
         if (ustawienia.wstepny) { pole.value = ustawienia.wstepny; }
+
+        var wskazowka = styl(document.createElement('p'), {
+            margin: '4px 0 10px', fontSize: '11px', color: '#5E6E67'
+        });
+        wskazowka.textContent = 'Ten sam login, którym logujesz się do komputera '
+                + '(formaty bywają różne: imie.nazwisko albo nazwisko.imie — '
+                + 'sprawdzisz poleceniem whoami w cmd).';
+
+        var etykietaDept = styl(document.createElement('label'), {
+            display: 'block', fontSize: '12px', fontWeight: '600', marginBottom: '4px'
+        });
+        etykietaDept.textContent = 'Departament (skrót)';
+        etykietaDept.htmlFor = 'deklaracja-dept';
+
+        var poleDept = poleTekstowe('deklaracja-dept', 'np. dzi', 'organization');
+        if (ustawienia.wstepnyDept) { poleDept.value = ustawienia.wstepnyDept; }
 
         var blad = styl(document.createElement('p'), {
             margin: '8px 0 0', fontSize: '12px', color: '#A93226', minHeight: '15px'
@@ -184,21 +234,33 @@
                 pole.focus();
                 return;
             }
-            zapiszLogin(login);
+            var dept = poleDept.value.trim().toLowerCase();
+            var problemDept = bladWalidacjiDept(dept);
+            if (problemDept) {
+                blad.textContent = problemDept;
+                poleDept.focus();
+                return;
+            }
+            zapiszTozsamosc(login, dept);
             scrim.remove();
             okno = null;
-            ustawienia.poZatwierdzeniu(login);
+            ustawienia.poZatwierdzeniu({ login: login, dept: dept });
         }
 
         przycisk.addEventListener('click', zatwierdz);
-        pole.addEventListener('keydown', function (zdarzenie) {
-            if (zdarzenie.key === 'Enter') { zdarzenie.preventDefault(); zatwierdz(); }
+        [pole, poleDept].forEach(function (el) {
+            el.addEventListener('keydown', function (zdarzenie) {
+                if (zdarzenie.key === 'Enter') { zdarzenie.preventDefault(); zatwierdz(); }
+            });
         });
 
         karta.appendChild(tytul);
         karta.appendChild(opis);
         karta.appendChild(etykieta);
         karta.appendChild(pole);
+        karta.appendChild(wskazowka);
+        karta.appendChild(etykietaDept);
+        karta.appendChild(poleDept);
         karta.appendChild(blad);
         karta.appendChild(przycisk);
         scrim.appendChild(karta);
@@ -214,11 +276,21 @@
         if (gotowosc) { return gotowosc; }
         gotowosc = new Promise(function (resolve) {
             var zapamietany = odczytajLogin();
-            if (zapamietany) {
+            var zapamietanyDept = odczytajDept();
+            if (zapamietany && zapamietanyDept) {
                 // Zapis z poprzedniej wizyty: deklarujemy bez sondy. W wariancie A nagłówek
                 // i tak nadpisze IIS, a w dev przejmie go filtr — nieszkodliwe w obu.
                 tryb = 'declared';
-                resolve(zapamietany);
+                resolve({ login: zapamietany, dept: zapamietanyDept });
+                return;
+            }
+            if (zapamietany && !zapamietanyDept) {
+                // Migracja z wersji sprzed ADR-0005: znamy login, dobieramy departament.
+                tryb = 'declared';
+                pokazOkno({
+                    wstepny: zapamietany,
+                    poZatwierdzeniu: function (tozsamosc) { resolve(tozsamosc); }
+                });
                 return;
             }
             originalFetch(WHOAMI_URL, {
@@ -227,7 +299,7 @@
             }).then(function (odpowiedz) {
                 if (odpowiedz.status === 401) {
                     tryb = 'declared';
-                    pokazOkno({ poZatwierdzeniu: function (login) { resolve(login); } });
+                    pokazOkno({ poZatwierdzeniu: function (tozsamosc) { resolve(tozsamosc); } });
                 } else {
                     // 200 = tożsamość daje środowisko (wariant A / dev-fallback).
                     // Inne statusy i błędy sieci też przepuszczamy bez okna —
@@ -259,11 +331,11 @@
         if (!czyApi(wejscie)) {
             return originalFetch(wejscie, opcje);
         }
-        return ustalTozsamosc().then(function (login) {
-            if (!login) {
+        return ustalTozsamosc().then(function (tozsamosc) {
+            if (!tozsamosc) {
                 return originalFetch(wejscie, opcje);
             }
-            return originalFetch(wejscie, zNaglowkiem(wejscie, opcje, login)).then(function (odpowiedz) {
+            return originalFetch(wejscie, zNaglowkiem(wejscie, opcje, tozsamosc)).then(function (odpowiedz) {
                 if (odpowiedz.status === 401) {
                     odrzuconaDeklaracja();
                     return new Promise(function () { /* strona zaraz się przeładuje */ });
@@ -278,6 +350,7 @@
     function zmienUzytkownika() {
         pokazOkno({
             wstepny: odczytajLogin() || '',
+            wstepnyDept: odczytajDept() || '',
             poZatwierdzeniu: function () { window.location.reload(); }
         });
     }
@@ -315,7 +388,7 @@
     /* ===== diagnostyka (konsola / inne strony bez elementu hero) ===== */
 
     window.PortalIdentity = {
-        current: function () { return odczytajLogin(); },
+        current: function () { return { login: odczytajLogin(), dept: odczytajDept() }; },
         change: zmienUzytkownika,
         clear: function () { wyczyscLogin(); window.location.reload(); }
     };

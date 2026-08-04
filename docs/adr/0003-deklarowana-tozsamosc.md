@@ -2,6 +2,13 @@
 
 Status: zaakceptowany · Data: 2026-07-21 · Uzupełnia ADR-0001 (dec. 6 i 7)
 
+> **Aktualizacja 2026-08-03 — ADR-0005:** źródłem przynależności NIE jest już
+> tabela `user_departments` — departament jest DEKLAROWANY drugim nagłówkiem,
+> a uprawnienia żądania to {login, departament, wszyscy}. Aktualne z tego ADR
+> pozostają: granice zaufania (loopback/CIDR), limiter anomalii, audyt każdej
+> deklaracji, zakaz danych wrażliwych oraz odrzucenie kontroli po stronie klienta
+> (decyzję o dostępie do KAŻDEGO zasobu API nadal podejmuje serwer).
+
 ## Kontekst
 
 Mały moduł/wdrożenie wewnątrz jednostki **bez możliwości integracji z usługą

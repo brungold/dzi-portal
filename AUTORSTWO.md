@@ -12,7 +12,8 @@ Zakres autorstwa obejmuje w szczególności:
 - model bezpieczeństwa (trójwarstwowa ochrona nagłówka tożsamości, dwustronny RBAC
   oparty o grupy AD, whitelist skryptów, audyt append-only egzekwowany uprawnieniami SQL),
 - model **deklarowanej tożsamości** dla wdrożeń bez integracji z katalogiem
-  (ADR-0003): rozdzielenie deklaracji od autoryzacji — klient deklaruje wyłącznie
+  (ADR-0003; iteracja ADR-0005 — deklarowany departament dla skali tysięcy
+  użytkowników, ze świadomie nazwanymi granicami): rozdzielenie deklaracji od autoryzacji — klient deklaruje wyłącznie
   login, przynależność i uprawnienia wyprowadza serwer; odrzucenie kontroli
   po stronie klienta; kompensacje (fail-closed, limiter wykrywający deklarowanie
   wielu loginów z jednego adresu, podwójny przełącznik otwarcia na sieć)
