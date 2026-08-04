@@ -91,7 +91,7 @@ class DeclaredRateLimiterTest {
     private DeclaredRateLimiter limiter(int maxPerMinute, int anomalyDistinctLogins) {
         var properties = new DeclaredIdentityProperties(
                 List.of(), maxPerMinute, anomalyDistinctLogins,
-                Duration.ofMinutes(10), Duration.ofMinutes(15));
+                Duration.ofMinutes(10), Duration.ofMinutes(15), "X-Auth-Dept");
         return new DeclaredRateLimiter(properties, clock);
     }
 
