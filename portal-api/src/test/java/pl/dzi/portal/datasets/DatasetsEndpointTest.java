@@ -58,9 +58,12 @@ class DatasetsEndpointTest {
         // Izolacja (FIRST): edycje i importy z jednej metody nie mogą przeciekać do kolejnych
         // (wcześniej test ETag i test konfliktu wersji dzieliły ten sam wiersz — commit 31).
         rows.reset();
-        rows.save(DatasetRow.create(1L, "Acrobat Pro",
-                java.util.Map.of("produkt", "Acrobat Pro", "posiadane", "40", "uzyte", "33"),
-                "seed", NOW));
+        java.util.Map<String, String> seed = new java.util.HashMap<>();
+        seed.put("produkt", "Acrobat Pro");
+        seed.put("posiadane", "40");
+        seed.put("uzyte", "33");
+        seed.put("uwagi", null);
+        rows.save(DatasetRow.create(1L, "Acrobat Pro", seed, "seed", NOW));
     }
 
     @TestConfiguration
