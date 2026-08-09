@@ -129,6 +129,27 @@ class LoopbackHeaderAuthenticationFilterTest {
         assertThat(((PortalUser) authentication.getPrincipal()).login()).isEqualTo("jkowalski");
     }
 
+    @Test
+    void should_treat_blank_header_value_as_missing_identity() throws Exception {
+        // Regresja 2026-08-06: proxy potrafi wstrzyknąć nagłówek z pustą wartością
+        // (puste {LOGON_USER} przed etapem uwierzytelnienia w IIS) — to brak tożsamości, nie błąd.
+        for (String blank : new String[] {"", "   ", "DZI\\"}) {
+            var filter = filterWithFallback(null);
+            var request = requestFrom("127.0.0.1");
+            request.addHeader(HEADER, blank);
+            var response = new MockHttpServletResponse();
+            var chain = new MockFilterChain();
+
+            filter.doFilter(request, response, chain);
+
+            assertThat(SecurityContextHolder.getContext().getAuthentication())
+                    .as("brak uwierzytelnienia dla wartości '%s'", blank).isNull();
+            assertThat(chain.getRequest()).as("dalej decyduje autoryzacja (401)").isNotNull();
+            assertThat(request.getAttribute(PortalRequestAttributes.USERNAME)).isNull();
+            SecurityContextHolder.clearContext();
+        }
+    }
+
     private LoopbackHeaderAuthenticationFilter filterWithFallback(String devFallbackUser) {
         var properties = new PortalSecurityProperties(HEADER, devFallbackUser, Duration.ofMinutes(10), Map.of());
         return new LoopbackHeaderAuthenticationFilter(resolver, properties);

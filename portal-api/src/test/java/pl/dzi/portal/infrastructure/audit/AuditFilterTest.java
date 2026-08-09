@@ -24,6 +24,7 @@ import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatCode;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /**
  * Czyste testy jednostkowe: writer jako in-memory double (dziedziczenie zamiast mocków),
@@ -116,6 +117,43 @@ class AuditFilterTest {
         // when / then: ADR-0001 — awaria audytu nie może położyć żądania
         assertThatCode(() -> filter.doFilter(request, response, chain)).doesNotThrowAnyException();
         assertThat(response.getStatus()).isEqualTo(200);
+    }
+
+    @Test
+    void should_record_error_500_and_rethrow_when_chain_throws() {
+        // Regresja 2026-08-06: wyjątek z łańcucha (pusty X-Auth-User -> IllegalArgumentException
+        // w filtrze uwierzytelniania) był notowany jako SUCCESS 200, bo response.getStatus()
+        // w chwili przelotu wyjątku pokazuje jeszcze wartość sprzed błędu.
+        var request = new MockHttpServletRequest("GET", "/api/whoami");
+        var response = new MockHttpServletResponse();
+        FilterChain chain = (req, res) -> {
+            throw new IllegalArgumentException("A granted authority textual representation is required");
+        };
+
+        assertThatThrownBy(() -> filter.doFilter(request, response, chain))
+                .isInstanceOf(IllegalArgumentException.class);
+
+        assertThat(writer.entries).hasSize(1);
+        AuditEntry entry = writer.entries.get(0);
+        assertThat(entry.status()).isEqualTo(AuditStatus.ERROR);
+        assertThat(entry.httpStatus()).isEqualTo(500);
+        assertThat(entry.username()).isEqualTo("-");
+    }
+
+    @Test
+    void should_rethrow_original_exception_even_when_audit_write_fails() {
+        // Awaria zapisu audytu nie może zamaskować pierwotnego wyjątku żądania (ADR-0001).
+        writer.failOnWrite = true;
+        var request = new MockHttpServletRequest("GET", "/api/whoami");
+        var response = new MockHttpServletResponse();
+        FilterChain chain = (req, res) -> {
+            throw new IllegalStateException("pierwotny błąd żądania");
+        };
+
+        assertThatThrownBy(() -> filter.doFilter(request, response, chain))
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessage("pierwotny błąd żądania");
+        assertThat(writer.entries).isEmpty();
     }
 
     /** In-memory double: AuditWriter celowo jest klasą — nadpisujemy write(), pola bazowe nieużywane. */

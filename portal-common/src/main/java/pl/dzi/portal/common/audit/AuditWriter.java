@@ -14,8 +14,9 @@ import org.springframework.context.annotation.Profile;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Component;
 
-import java.sql.Timestamp;
 import java.time.Clock;
+import java.time.LocalDateTime;
+import java.time.ZoneOffset;
 
 /**
  * Świadomie JdbcTemplate zamiast repozytorium Spring Data: tabela jest append-only
@@ -42,8 +43,12 @@ public class AuditWriter {
     private final Clock clock;
 
     public void write(AuditEntry entry) {
+        // ts_utc: jawnie "ścianka zegara" UTC (kontrakt kolumny i konwencja schematu z V1).
+        // NIE java.sql.Timestamp: sterownik binduje Timestamp do strefowo-naiwnego DATETIME2
+        // według strefy JVM, więc do kolumny trafiał czas LOKALNY (defekt wykryty 2026-08-06:
+        // audyt 11:09:28 vs log IIS 09:09:28Z). LocalDateTime idzie do bazy 1:1, bez strefy.
         jdbcTemplate.update(INSERT_SQL,
-                Timestamp.from(clock.instant()),
+                LocalDateTime.ofInstant(clock.instant(), ZoneOffset.UTC),
                 entry.username(),
                 entry.clientIp(),
                 entry.httpMethod(),

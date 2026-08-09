@@ -165,6 +165,31 @@ class DeclaredHeaderAuthenticationFilterTest {
                 .isEqualTo("jkowalski");
     }
 
+    @Test
+    void should_treat_blank_header_value_as_missing_declaration() throws Exception {
+        // Regresja 2026-08-06: puste {LOGON_USER} z reguły URL Rewrite w IIS wstrzykiwało
+        // nagłówek z pustą wartością, a SimpleGrantedAuthority("") wywracał żądanie
+        // wyjątkiem (IllegalArgumentException) zamiast czystego 401.
+        for (String blank : new String[] {"", "   ", "ZSZIK\\", "  ZSZIK\\  "}) {
+            var filter = filter(List.of());
+            var request = requestFrom("127.0.0.1");
+            request.addHeader(HEADER, blank);
+            var response = new MockHttpServletResponse();
+            var chain = new MockFilterChain();
+
+            filter.doFilter(request, response, chain);
+
+            assertThat(SecurityContextHolder.getContext().getAuthentication())
+                    .as("brak uwierzytelnienia dla wartości '%s'", blank).isNull();
+            assertThat(chain.getRequest())
+                    .as("żądanie idzie dalej — o odmowie zdecyduje autoryzacja (401)").isNotNull();
+            assertThat(request.getAttribute(PortalRequestAttributes.USERNAME))
+                    .as("bez atrybutu loginu — audyt pokaże '-'").isNull();
+            assertThat(response.getStatus()).as("filtr nie dotyka odpowiedzi").isEqualTo(200);
+            SecurityContextHolder.clearContext();
+        }
+    }
+
     private DeclaredHeaderAuthenticationFilter filter(List<String> allowedCidrs) {
         var declaredProperties = properties(allowedCidrs, 1000);
         return new DeclaredHeaderAuthenticationFilter(

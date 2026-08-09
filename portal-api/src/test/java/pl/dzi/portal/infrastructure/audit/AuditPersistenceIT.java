@@ -26,9 +26,9 @@ import pl.dzi.portal.common.audit.AuditWriter;
 import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.Statement;
-import java.sql.Timestamp;
 import java.time.Clock;
 import java.time.Instant;
+import java.time.LocalDateTime;
 import java.time.ZoneOffset;
 import java.util.Map;
 import java.util.UUID;
@@ -39,7 +39,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 /**
  * Test integracyjny na PRAWDZIWYM SQL Server (Testcontainers). Sprawdza trzy rzeczy,
  * których nie da się uczciwie przetestować inaczej:
- *  1) migracje V1+V2 przechodzą na czystej bazie (składnia T-SQL),
+ *  1) komplet migracji (V1..V6, w tym widoki czasu polskiego) przechodzi na czystej bazie,
  *  2) AuditWriter zapisuje pełny wpis, a znacznik czasu pochodzi z Clocka,
  *  3) semantyka append-only z prod-grants.sql działa: DENY UPDATE/DELETE wygrywa
  *     z rolą db_datawriter (INSERT wolno, UPDATE/DELETE — nie).
@@ -109,7 +109,37 @@ class AuditPersistenceIT {
         assertThat(row.get("action")).isEqualTo("TILE_EXECUTE");
         assertThat(row.get("object_ref")).isEqualTo("tile:42");
         assertThat(row.get("status")).isEqualTo("SUCCESS");
-        assertThat(((Timestamp) row.get("ts_utc")).toInstant()).isEqualTo(fixedInstant);
+        // Odczyt jako LocalDateTime — niezależnie od strefy JVM testu. Poprzednia asercja
+        // (Timestamp.toInstant) przechodziła nawet z defektem strefy w AuditWriter, bo zapis
+        // i odczyt przez Timestamp myliły się symetrycznie i błąd się znosił (2026-08-06).
+        LocalDateTime storedTs = adminJdbc.queryForObject(
+                "SELECT ts_utc FROM audit_log WHERE correlation_id = ?", LocalDateTime.class, correlationId);
+        assertThat(storedTs).isEqualTo(LocalDateTime.ofInstant(fixedInstant, ZoneOffset.UTC));
+    }
+
+    @Test
+    void should_expose_polish_local_time_via_view() {
+        // Widok v_audit_log_pl (V5): ts_pl = ts_utc przeliczony na strefę Polski,
+        // z automatyczną obsługą czasu letniego/zimowego przez AT TIME ZONE.
+        var summer = Instant.parse("2026-07-01T10:00:00Z");   // CEST: UTC+2
+        var winter = Instant.parse("2026-01-15T10:00:00Z");   // CET:  UTC+1
+        String summerCid = UUID.randomUUID().toString();
+        String winterCid = UUID.randomUUID().toString();
+        new AuditWriter(adminJdbc, Clock.fixed(summer, ZoneOffset.UTC)).write(entryWith(summerCid));
+        new AuditWriter(adminJdbc, Clock.fixed(winter, ZoneOffset.UTC)).write(entryWith(winterCid));
+
+        assertThat(tsPlFor(summerCid)).isEqualTo(LocalDateTime.of(2026, 7, 1, 12, 0));
+        assertThat(tsPlFor(winterCid)).isEqualTo(LocalDateTime.of(2026, 1, 15, 11, 0));
+    }
+
+    private static AuditEntry entryWith(String correlationId) {
+        return new AuditEntry("jkowalski", "10.0.5.7", "GET", "/api/whoami",
+                null, null, AuditStatus.SUCCESS, 200, 5, correlationId);
+    }
+
+    private static LocalDateTime tsPlFor(String correlationId) {
+        return adminJdbc.queryForObject(
+                "SELECT ts_pl FROM v_audit_log_pl WHERE correlation_id = ?", LocalDateTime.class, correlationId);
     }
 
     @Test

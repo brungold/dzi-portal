@@ -33,6 +33,9 @@ import java.io.IOException;
  * akcji biznesowej (@Audited) i identyfikatora obiektu (AuditContext), czytanych
  * z atrybutów requestu. Login również z atrybutu, bo SecurityContext jest czyszczony
  * zanim sterowanie tu wróci.
+ *
+ * Żądanie przerwane wyjątkiem jest zapisywane jako ERROR/500 — status z response
+ * w chwili przelotu wyjątku przez ten filtr jeszcze kłamie (kontener nada 500 wyżej).
  */
 @Slf4j
 @RequiredArgsConstructor
@@ -48,20 +51,32 @@ public final class AuditFilter extends OncePerRequestFilter {
         long startNanos = System.nanoTime();
         try {
             filterChain.doFilter(request, response);
-        } finally {
-            long durationMs = (System.nanoTime() - startNanos) / 1_000_000;
-            // 304 = "nic się nie wydarzyło" (polling ETag) — bez wpisu. Zwykły warunek,
-            // celowo NIE wczesny return: return w bloku finally POŁYKA wyjątek lecący
-            // z łańcucha (poprawka z drugiego przeglądu, commit 32).
-            if (response.getStatus() != HttpServletResponse.SC_NOT_MODIFIED) {
-                writeEntrySafely(request, response, durationMs);
-            }
+        } catch (Exception e) {
+            // Żądanie przerwane wyjątkiem. response.getStatus() pokazuje w tym momencie wartość
+            // sprzed błędu (zwykle 200) — kod 500 nada dopiero kontener PIĘTRO WYŻEJ
+            // (StandardWrapperValve -> error dispatch na /error). Zapisujemy więc prawdę
+            // (ERROR/500) jawnie i puszczamy wyjątek dalej, żeby obsługa błędów zadziałała.
+            //
+            // Lekcja (2026-08-06): puste X-Auth-User z IIS kończyło się wyjątkiem w filtrze
+            // uwierzytelniania, a audyt notował "SUCCESS 200" — rejestr kłamał przy awarii.
+            writeEntrySafely(request, elapsedMs(startNanos), HttpServletResponse.SC_INTERNAL_SERVER_ERROR);
+            throw e;
+        }
+        // 304 = "nic się nie wydarzyło" (polling ETag) — bez wpisu. Wcześniejsza wersja używała
+        // finally (stąd poprawka z commitu 32 o return-w-finally); po rozdzieleniu ścieżek
+        // wyjątek ma własny zapis powyżej, a finally nie jest już potrzebne.
+        if (response.getStatus() != HttpServletResponse.SC_NOT_MODIFIED) {
+            writeEntrySafely(request, elapsedMs(startNanos), response.getStatus());
         }
     }
 
-    private void writeEntrySafely(HttpServletRequest request, HttpServletResponse response, long durationMs) {
+    private static long elapsedMs(long startNanos) {
+        return (System.nanoTime() - startNanos) / 1_000_000;
+    }
+
+    private void writeEntrySafely(HttpServletRequest request, long durationMs, int httpStatus) {
         try {
-            auditWriter.write(buildEntry(request, response, durationMs));
+            auditWriter.write(buildEntry(request, durationMs, httpStatus));
         } catch (Exception e) {
                 // Decyzja (ADR-0001): awaria zapisu audytu nie blokuje odpowiedzi użytkownika,
                 // ale krzyczy w logach — to sygnał do natychmiastowej interwencji.
@@ -70,12 +85,11 @@ public final class AuditFilter extends OncePerRequestFilter {
         }
     }
 
-    private AuditEntry buildEntry(HttpServletRequest request, HttpServletResponse response, long durationMs) {
+    private AuditEntry buildEntry(HttpServletRequest request, long durationMs, int httpStatus) {
         String username = (String) request.getAttribute(PortalRequestAttributes.USERNAME);
         String correlationId = (String) request.getAttribute(PortalRequestAttributes.CORRELATION_ID);
         String action = (String) request.getAttribute(PortalRequestAttributes.ACTION);
         String objectRef = (String) request.getAttribute(PortalRequestAttributes.OBJECT_REF);
-        int httpStatus = response.getStatus();
 
         return new AuditEntry(
                 username != null ? username : UNKNOWN_USER,

@@ -86,14 +86,19 @@ final class DeclaredHeaderAuthenticationFilter extends OncePerRequestFilter {
             throws ServletException, IOException {
 
         String rawHeader = request.getHeader(securityProperties.header());
-        if (rawHeader == null) {
-            // Brak deklaracji — o odmowie zdecyduje autoryzacja (401 z ApiAuthenticationEntryPoint).
+        String login = rawHeader != null ? extractSamAccountName(rawHeader) : null;
+        if (login == null || login.isBlank()) {
+            // Brak deklaracji LUB wartość pusta po normalizacji ("", "   ", "ZSZIK\") — traktowane
+            // tak samo: o odmowie zdecyduje autoryzacja (401 z ApiAuthenticationEntryPoint).
             // Świadomie BEZ dev-fallbacku: w tym trybie każdy wpis audytu ma nieść jawny login.
+            //
+            // Historia (2026-08-06): reguła URL Rewrite w IIS czyta {LOGON_USER} przed etapem
+            // uwierzytelnienia i wstrzykiwała nagłówek z PUSTĄ wartością; pusty login dochodził
+            // do budowy uprawnień i SimpleGrantedAuthority("") wywracał żądanie wyjątkiem
+            // (IllegalArgumentException, linia 120) zamiast czystego 401.
             filterChain.doFilter(request, response);
             return;
         }
-
-        String login = extractSamAccountName(rawHeader);
         request.setAttribute(PortalRequestAttributes.USERNAME, login); // także dla odrzuconych — audyt prób
 
         if (!isTrustedSource(request.getRemoteAddr())) {

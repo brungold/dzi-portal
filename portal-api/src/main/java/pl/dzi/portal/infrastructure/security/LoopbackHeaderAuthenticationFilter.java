@@ -59,13 +59,15 @@ final class LoopbackHeaderAuthenticationFilter extends OncePerRequestFilter {
         if (rawHeader == null && loopback && StringUtils.hasText(properties.devFallbackUser())) {
             rawHeader = properties.devFallbackUser();
         }
-        if (rawHeader == null) {
-            // Brak tożsamości — o odmowie zdecyduje autoryzacja (401 z ApiAuthenticationEntryPoint).
+        String login = rawHeader != null ? extractSamAccountName(rawHeader) : null;
+        if (login == null || login.isBlank()) {
+            // Brak tożsamości LUB wartość pusta po normalizacji (np. puste {LOGON_USER}
+            // wstrzyknięte przez proxy, zanim IIS uwierzytelnił żądanie) — o odmowie zdecyduje
+            // autoryzacja (401 z ApiAuthenticationEntryPoint). Ten sam defekt i poprawka,
+            // co w DeclaredHeaderAuthenticationFilter (2026-08-06).
             filterChain.doFilter(request, response);
             return;
         }
-
-        String login = extractSamAccountName(rawHeader);
         request.setAttribute(PortalRequestAttributes.USERNAME, login); // także dla żądań odrzuconych — audyt prób
 
         if (!loopback) {
