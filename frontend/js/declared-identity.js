@@ -16,9 +16,10 @@
  * pozostają NIETKNIĘTE — jeden punkt integracji, jeden plik do przeglądu.
  *
  * Wykrywanie trybu (zero konfiguracji):
- *  - sonda GET /api/whoami BEZ nagłówka,
- *  - 200  -> tryb przezroczysty (wariant A: nagłówek wstrzykuje IIS; albo dev-fallback)
- *            — moduł nic nie robi, okno nigdy się nie pokazuje,
+ *  - sonda GET /api/whoami BEZ nagłówka — idzie ZAWSZE, także przy zapisanej deklaracji
+ *    (od 2026-08: Windows Auth — login wstrzykuje serwerowo moduł IIS),
+ *  - 200  -> tryb przezroczysty (moduł IIS / wariant A / dev-fallback) — okno nigdy się
+ *            nie pokazuje, a stary zapis deklaracji jest czyszczony (samonaprawa),
  *  - 401  -> tryb declared — okno deklaracji, login do localStorage, nagłówek do /api.
  *
  * Klient deklaruje LOGIN i DEPARTAMENT (ADR-0005) — skrót jak w AD
@@ -275,38 +276,36 @@
     function ustalTozsamosc() {
         if (gotowosc) { return gotowosc; }
         gotowosc = new Promise(function (resolve) {
-            var zapamietany = odczytajLogin();
-            var zapamietanyDept = odczytajDept();
-            if (zapamietany && zapamietanyDept) {
-                // Zapis z poprzedniej wizyty: deklarujemy bez sondy. W wariancie A nagłówek
-                // i tak nadpisze IIS, a w dev przejmie go filtr — nieszkodliwe w obu.
-                tryb = 'declared';
-                resolve({ login: zapamietany, dept: zapamietanyDept });
-                return;
-            }
-            if (zapamietany && !zapamietanyDept) {
-                // Migracja z wersji sprzed ADR-0005: znamy login, dobieramy departament.
-                tryb = 'declared';
-                pokazOkno({
-                    wstepny: zapamietany,
-                    poZatwierdzeniu: function (tozsamosc) { resolve(tozsamosc); }
-                });
-                return;
-            }
+            // Sonda idzie ZAWSZE pierwsza — także przy zapisanej deklaracji. Od 2026-08
+            // login potrafi wstrzykiwać serwerowo moduł IIS (Windows Auth): odpowiedź 200
+            // bez nagłówka oznacza tryb przezroczysty, a stary zapis deklaracji jest
+            // wtedy czyszczony, żeby nie mylił (samonaprawa po zmianie trybu).
             originalFetch(WHOAMI_URL, {
                 credentials: 'same-origin', cache: 'no-store',
                 headers: { 'Accept': 'application/json' }
             }).then(function (odpowiedz) {
-                if (odpowiedz.status === 401) {
-                    tryb = 'declared';
-                    pokazOkno({ poZatwierdzeniu: function (tozsamosc) { resolve(tozsamosc); } });
-                } else {
-                    // 200 = tożsamość daje środowisko (wariant A / dev-fallback).
+                if (odpowiedz.status !== 401) {
+                    // 200 = tożsamość daje środowisko (moduł IIS / wariant A / dev-fallback).
                     // Inne statusy i błędy sieci też przepuszczamy bez okna —
                     // strony pokażą własne komunikaty, a moduł nie udaje bramki.
                     tryb = 'transparent';
+                    if (odczytajLogin() || odczytajDept()) { wyczyscLogin(); }
                     resolve(null);
+                    return;
                 }
+                tryb = 'declared';
+                var zapamietany = odczytajLogin();
+                var zapamietanyDept = odczytajDept();
+                if (zapamietany && zapamietanyDept) {
+                    resolve({ login: zapamietany, dept: zapamietanyDept });
+                    return;
+                }
+                // Brak pełnego zapisu: pierwsza wizyta albo migracja sprzed ADR-0005
+                // (znamy login, dobieramy departament) — okno deklaracji.
+                pokazOkno({
+                    wstepny: zapamietany || '',
+                    poZatwierdzeniu: function (tozsamosc) { resolve(tozsamosc); }
+                });
             }).catch(function () {
                 tryb = 'transparent';
                 resolve(null);
