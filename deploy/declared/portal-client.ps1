@@ -21,7 +21,7 @@
 #>
 [CmdletBinding()]
 param(
-    [string]$BaseUrl = 'https://portal.dzi.pl',
+    [string]$BaseUrl = 'https://arimr-app.zszik.pl',
     [string]$Run = ''
 )
 $ErrorActionPreference = 'Stop'

@@ -74,7 +74,7 @@ $headers = @{
     'X-Auth-User' = $p['samaccountname'][0].ToString().ToLower()
     'X-Auth-Dept' = $p['extensionattribute12'][0].ToString().ToLower()
 }
-Invoke-RestMethod -Uri 'https://portal.dzi.pl/api/tiles' -Headers $headers
+Invoke-RestMethod -Uri 'https://arimr-app.zszik.pl/api/tiles' -Headers $headers
 ```
 
 **Przeglądarka** — `frontend/js/declared-identity.js`: sonda `/api/whoami`,

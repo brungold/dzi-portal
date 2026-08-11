@@ -12,7 +12,7 @@ Różnią się wyłącznie tym, skąd bierze się login. Dalej łańcuch jest id
 **Wariant A — integracja z AD** (docelowy; profil `prod`):
 
 ```
-przeglądarka ──Kerberos/443──> IIS (portal.dzi.pl)
+przeglądarka ──Kerberos/443──> IIS (arimr-app.zszik.pl)
                                 ├── /            statyczny frontend (Tabulator lokalnie, zero CDN)
                                 └── /api/*  ──X-Auth-User──> portal-api (127.0.0.1:8080)
                                                                 │  grupy z AD przez LDAPS

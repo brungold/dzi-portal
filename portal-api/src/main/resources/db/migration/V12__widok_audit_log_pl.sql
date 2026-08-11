@@ -2,12 +2,11 @@
 -- Portal DZI — wewnętrzny portal kafelkowy departamentu DZI.
 -- Autor: Maciej Myśliwiec, 2026.
 -- =====================================================================
--- V5: widok audytu z czasem polskim (odczyt operacyjny w sqlcmd).
--- Kolumna ts_utc ZOSTAJE w UTC (konwencja schematu z V1: "czas w UTC");
--- ts_pl to przeliczenie na strefe Polski z automatyczna obsluga
--- czasu letniego/zimowego (CEST/CET) przez AT TIME ZONE.
+-- V12: widok audytu z czasem polskim (odczyt operacyjny w sqlcmd).
+-- Kolumna ts_utc ZOSTAJE w UTC (konwencja schematu); ts_pl to przeliczenie
+-- na strefę Polski z automatyczną obsługą czasu letniego/zimowego.
 -- 'Central European Standard Time' to windowsowy identyfikator strefy
--- obejmujacy Warszawe WRAZ z regulami DST (SQL Server 2016+).
+-- obejmujący Warszawę WRAZ z regułami DST (SQL Server 2016+).
 -- Odczyt: SELECT TOP 20 * FROM v_audit_log_pl ORDER BY id DESC;
 -- =====================================================================
 CREATE VIEW dbo.v_audit_log_pl AS

@@ -21,7 +21,7 @@ i przynależność.
 **Wariant A — z AD (docelowy, profil `prod`):**
 
 ```
-przeglądarka ──Kerberos──> IIS (portal.dzi.pl) ──X-Auth-User──> API (127.0.0.1:8080, gMSA)
+przeglądarka ──Kerberos──> IIS (arimr-app.zszik.pl) ──X-Auth-User──> API (127.0.0.1:8080, gMSA)
                                                                   │ LDAPS 636 → grupy AD
                                                         SQL Server ── portal-worker → powershell.exe
 ```

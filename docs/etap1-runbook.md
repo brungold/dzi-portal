@@ -10,12 +10,12 @@
 
 ## Cel i kryteria akceptacji
 
-Przeglądarka na **innej stacji** → `https://portal.dzi.pl/api/whoami` i:
+Przeglądarka na **innej stacji** → `https://arimr-app.zszik.pl/api/whoami` i:
 
 1. odpowiedź 200 **bez żadnego promptu o hasło** (czysty SSO),
 2. `login` = Twój sAMAccountName,
 3. `groups` zawiera Twoje grupy `DZI-Portal-*` rozwiązane z AD (w tym zagnieżdżone),
-4. `klist` na stacji pokazuje bilet `HTTP/portal.dzi.pl` (dowód Kerberos, nie NTLM),
+4. `klist` na stacji pokazuje bilet `HTTP/arimr-app.zszik.pl` (dowód Kerberos, nie NTLM),
 5. w `audit_log` wpis SUCCESS z Twoim loginem i **IP stacji** (nie serwera),
 6. test anty-spoof z `verify-etap1.ps1` na zielono (nagłówek klienta nadpisany).
 
@@ -23,10 +23,10 @@ Do tego: `curl` bez nagłówka lokalnie → 401 i wpis DENIED w audycie.
 
 ## Wymagane wcześniej (tickety Etapu −1)
 
-RDP odblokowane · rekord **A** `portal.dzi.pl → 10.0.22.150` · SPN
-`setspn -S HTTP/portal.dzi.pl DZI-APP01V$` · certyfikat TLS z AD CS w LocalMachine\My ·
+RDP odblokowane · rekord **A** `arimr-app.zszik.pl → 10.0.22.150` · SPN
+`setspn -S HTTP/arimr-app.zszik.pl DZI-APP01V$` · certyfikat TLS z AD CS w LocalMachine\My ·
 minimum jedna grupa `DZI-Portal-Admin` z Tobą w środku · konto **svc-portal-ldap** ·
-GPO: portal.dzi.pl w strefie Intranet · firewall 443 ze stacji do VLAN 822.
+GPO: arimr-app.zszik.pl w strefie Intranet · firewall 443 ze stacji do VLAN 822.
 **gMSA może poczekać do Fazy B** — Faza A działa bez nich.
 
 ## FAZA A — łańcuch dowieziony z konsoli (pod Twoim kontem)
@@ -75,8 +75,8 @@ DZI-Portal-*. Puste grupy = debuguj LDAP zanim dołożysz IIS (tabela na dole).
 **A9. Weryfikacja na serwerze.** `deploy/iis/verify-etap1.ps1` — wszystkie punkty zielone.
 
 **A10. TEST DECYDUJĄCY — z innej stacji.**
-`klist purge`, przeglądarka → `https://portal.dzi.pl/api/whoami`, potem `klist`
-(bilet HTTP/portal.dzi.pl). Test z serwera NIE liczy się jako zaliczenie —
+`klist purge`, przeglądarka → `https://arimr-app.zszik.pl/api/whoami`, potem `klist`
+(bilet HTTP/arimr-app.zszik.pl). Test z serwera NIE liczy się jako zaliczenie —
 loopback potrafi przejść na NTLM i zamaskować zepsuty Kerberos.
 
 **A11. Audyt.** `SELECT TOP 20 * FROM audit_log ORDER BY id DESC` — wpis SUCCESS,
@@ -101,8 +101,8 @@ po restarcie wszystko ma wstać samo (usługa Automatic/Delayed).
 
 | Objaw | Sprawdź |
 |---|---|
-| Prompt o login/hasło na stacji | portal.dzi.pl poza strefą Intranet (GPO); przeglądarka nie wysyła Negotiate |
-| Pętla 401.1 mimo poprawnego hasła | brak/duplikat SPN (`setspn -Q HTTP/portal.dzi.pl`); SPN na złym koncie vs kernel-mode |
+| Prompt o login/hasło na stacji | arimr-app.zszik.pl poza strefą Intranet (GPO); przeglądarka nie wysyła Negotiate |
+| Pętla 401.1 mimo poprawnego hasła | brak/duplikat SPN (`setspn -Q HTTP/arimr-app.zszik.pl`); SPN na złym koncie vs kernel-mode |
 | Działa, ale `klist` bez biletu HTTP/... | poszło NTLM-em: CNAME zamiast A, brak SPN, provider NTLM przed Negotiate |
 | whoami → 500 | LDAP: zły URL/port 636, brak flagi Windows-ROOT (zaufanie do certu DC), złe DN/hasło konta bind — szczegóły w logu z correlationId |
 | whoami → 200, `groups: []` | prefiks grup (`portal.ldap.group-prefix`) vs faktyczne nazwy; członkostwo; literówka w sAMAccountName grupy |

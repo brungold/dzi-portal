@@ -2,6 +2,14 @@
 
 Status: zaakceptowany · Data: 2026-08-03 · Zmienia model przynależności z ADR-0003
 
+> **Aktualizacja 2026-08-11 — ADR-0006:** w produkcji tożsamość pochodzi
+> z Windows Authentication — moduł IIS wpisuje uwierzytelniony login do
+> X-Auth-User, a X-Auth-Dept od klienta jest usuwany. Deklaracja pozostaje
+> wyłącznie trybem deweloperskim/awaryjnym (okno pojawia się tylko, gdy
+> whoami zwraca 401). Kompensacje z tego ADR (granice zaufania, limiter,
+> audyt) pozostają w mocy.
+
+
 ## Kontekst
 
 ADR-0003 wprowadził tryb `declared`: klient deklaruje wyłącznie login, a przynależność

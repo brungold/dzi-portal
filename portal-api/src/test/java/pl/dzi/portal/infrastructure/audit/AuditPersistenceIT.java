@@ -39,7 +39,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 /**
  * Test integracyjny na PRAWDZIWYM SQL Server (Testcontainers). Sprawdza trzy rzeczy,
  * których nie da się uczciwie przetestować inaczej:
- *  1) komplet migracji (V1..V6, w tym widoki czasu polskiego) przechodzi na czystej bazie,
+ *  1) komplet migracji (schemat plik-per-tabela V1-V11 + widoki V12/V13) przechodzi na czystej bazie,
  *  2) AuditWriter zapisuje pełny wpis, a znacznik czasu pochodzi z Clocka,
  *  3) semantyka append-only z prod-grants.sql działa: DENY UPDATE/DELETE wygrywa
  *     z rolą db_datawriter (INSERT wolno, UPDATE/DELETE — nie).

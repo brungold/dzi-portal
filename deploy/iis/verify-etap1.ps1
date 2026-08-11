@@ -14,9 +14,9 @@
 #>
 [CmdletBinding()]
 param(
-    [string]$HostName   = 'portal.dzi.pl',
+    [string]$HostName   = 'arimr-app.zszik.pl',
     [string]$ExpectedIp = '10.0.22.150',
-    [string]$SiteName   = 'portal.dzi.pl',
+    [string]$SiteName   = 'arimr-app.zszik.pl',
     [string]$BackendUrl = 'http://127.0.0.1:8080'
 )
 

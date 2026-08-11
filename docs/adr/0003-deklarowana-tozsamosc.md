@@ -2,6 +2,14 @@
 
 Status: zaakceptowany · Data: 2026-07-21 · Uzupełnia ADR-0001 (dec. 6 i 7)
 
+> **Aktualizacja 2026-08-11 — ADR-0006:** w produkcji tożsamość pochodzi
+> z Windows Authentication — moduł IIS wpisuje uwierzytelniony login do
+> X-Auth-User, a X-Auth-Dept od klienta jest usuwany. Deklaracja pozostaje
+> wyłącznie trybem deweloperskim/awaryjnym (okno pojawia się tylko, gdy
+> whoami zwraca 401). Kompensacje z tego ADR (granice zaufania, limiter,
+> audyt) pozostają w mocy.
+
+
 > **Aktualizacja 2026-08-03 — ADR-0005:** źródłem przynależności NIE jest już
 > tabela `user_departments` — departament jest DEKLAROWANY drugim nagłówkiem,
 > a uprawnienia żądania to {login, departament, wszyscy}. Aktualne z tego ADR

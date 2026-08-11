@@ -1,141 +1,84 @@
-# Windows Auth przez moduł IIS — instrukcja wdrożenia (paczka B)
+# Windows Auth przez moduł IIS — instrukcja (zaktualizowana po wdrożeniu 2026-08-11)
 
-Cel: IIS uwierzytelnia użytkownika (NTLM/Kerberos), a malutki moduł wpisuje jego
-login do nagłówka `X-Auth-User` PO etapie uwierzytelnienia — tam, gdzie reguła
-URL Rewrite nie sięga (reguły działają w BeginRequest, przed uwierzytelnieniem,
-dlatego `{LOGON_USER}` był w nich zawsze pusty; diagnoza 2026-08-06).
+Cel: IIS uwierzytelnia użytkownika (NTLM), a moduł `PortalAuthUserHeader` wpisuje
+jego login do nagłówka `X-Auth-User` PO etapie uwierzytelnienia — tam, gdzie
+reguła URL Rewrite nie sięga. Moduł to jeden plik DLL ładowany przez IIS jak
+URL Rewrite — żaden osobny program, zero instalatorów z internetu.
 
-Moduł to jeden plik DLL ładowany przez IIS jak URL Rewrite — żaden osobny
-program, żadna usługa, zero instalatorów z internetu.
+**Stan: wdrożone i potwierdzone produkcyjnie 2026-08-11** (login z domeny
+w audycie, anty-podszycie odbite, portal bez okna deklaracji). Instrukcja
+zachowana na wypadek odtworzenia serwera; wzbogacona o lekcje z wdrożenia.
+
+## Trzy lekcje, które kosztowały dwa dni — czytaj przed czymkolwiek
+
+1. **Kernel-mode authentication zostaje WŁĄCZONE.** (Windows Authentication →
+   Advanced Settings → „Enable Kernel-mode authentication" = zaznaczone;
+   Extended Protection = Off). Wyłączenie zabija NTLM dla wszystkich klientów
+   (0x8009030c / 0xc000006d na bramce, w logu IIS win32=2148074245 czyli
+   0x80090305). Moduł radzi sobie z trybem jądra sam.
+2. **Po każdej edycji web.config zweryfikuj, że IIS widzi moduł:**
+   `& "$env:windir\system32\inetsrv\appcmd.exe" list config "portal" -section:system.webServer/modules | Select-String "PortalAuthUserHeader"`
+   Brak wyniku = wpis nie działa (zły plik, zła lokalizacja, niezapisane) —
+   moduł NIE jest ładowany i login będzie pusty, choć wszystko inne wygląda
+   poprawnie. Ta jedna komenda wykryłaby prawdziwą przyczynę od razu.
+3. **Notatnik przy zapisie w katalogu witryny uruchamiaj jako administrator.**
+   Bez tego zapis potrafi pójść po cichu do innego pliku/katalogu („Zapisz
+   jako") — i edycja nigdy nie trafia na serwer.
 
 ## Założenia startowe
 
-- Witryna: `arimr-app.zszik.pl`, katalog `D:\portal\frontend`, pula `portal`.
-- Windows Authentication: **Enabled**, Anonymous: **Disabled** (stan z 2026-08-06).
-- Paczka A wdrożona (zalecane: bez niej pusty nagłówek przy anonimowym żądaniu
-  wywala wyjątek zamiast 401; z modułem i wyłączonym Anonymous to scenariusz
-  teoretyczny, ale porządek zobowiązuje).
+- Witryna `portal` (id 2), katalog `D:\portal\frontend`, pula `portal`,
+  binding `http/*:80:arimr-app.zszik.pl`.
+- Windows Authentication: Enabled, Anonymous: Disabled, kernel-mode: ON.
+- Paczka A wdrożona (aplikacja traktuje pusty nagłówek jak brak tożsamości).
 - Konsola #3 (administrator) do kroków 1–4.
 
-## Krok 1 — funkcja systemowa ASP.NET 4.8 (raz na serwer)
+## Kroki
 
-Server Manager → Add Roles and Features → Server Roles →
-Web Server (IIS) → Web Server → **Application Development** → zaznacz
-**ASP.NET 4.8** (kreator sam dobierze .NET Extensibility 4.8 oraz ISAPI —
-zgódź się). Ten sam kreator, którym doszła dziś Windows Authentication.
-
-Weryfikacja (PowerShell):
-
-    Get-WindowsFeature Web-Asp-Net45
-
-Install State ma być `Installed` (nazwa funkcji została historycznie
-`Web-Asp-Net45`, choć obejmuje 4.8).
-
-## Krok 2 — pula `portal` na potok zarządzany
-
-IIS Manager → Application Pools → `portal` → Basic Settings:
-
-- .NET CLR version: **v4.0.30319** (zamiast „No Managed Code"),
-- Managed pipeline mode: **Integrated**.
-
-Alternatywnie (konsola #3):
-
-    %windir%\system32\inetsrv\appcmd set apppool "portal" /managedRuntimeVersion:v4.0 /managedPipelineMode:Integrated
-
-## Krok 3 — kompilacja modułu (kompilator już jest w Windows)
-
-1. Skopiuj `AuthUserHeaderModule.cs` do `D:\portal\deploy\iis\`.
-2. Utwórz katalog `D:\portal\frontend\bin` (jeśli nie istnieje).
-3. Skompiluj (konsola #3, jedna linia):
+1. **Funkcja ASP.NET 4.8** (raz na serwer): Server Manager → Add Roles and
+   Features → Web Server (IIS) → Application Development → ASP.NET 4.8
+   (kreator dobierze zależności). Weryfikacja: `Get-WindowsFeature Web-Asp-Net45`
+   → Installed.
+2. **Pula `portal`** → Basic Settings: .NET CLR v4.0.30319, Integrated.
+   Po zmianie sprawdź, czy pula ma status Started.
+3. **Kompilacja modułu** (kompilator jest w Windows; konsola #3, bo zapis idzie
+   do katalogu witryny):
 
        C:\Windows\Microsoft.NET\Framework64\v4.0.30319\csc.exe /nologo /codepage:65001 /target:library /reference:System.Web.dll /out:D:\portal\frontend\bin\PortalAuthUserModule.dll D:\portal\deploy\iis\AuthUserHeaderModule.cs
 
-   `/codepage:65001` = plik jest w UTF-8 (polskie znaki w komentarzach).
-
-Weryfikacja: `dir D:\portal\frontend\bin` pokazuje `PortalAuthUserModule.dll`.
-
-## Krok 4 — web.config (D:\portal\frontend\web.config)
-
-Dwie zmiany (wzorzec całego pliku: `deploy/iis/web.config` w repo; na serwerze
-edytuj punktowo, nie nadpisuj — Twój plik może mieć lokalne dodatki):
-
-1. W `<system.webServer>` dołóż sekcję modułów (jeśli `<modules>` już istnieje —
-   tylko wiersz `<add>`):
-
-       <modules>
-           <add name="PortalAuthUserHeader"
-                type="PortalAuthUserModule.AuthUserHeaderModule, PortalAuthUserModule" />
-       </modules>
-
-   CELOWO bez `preCondition="managedHandler"` — z nim moduł ominąłby żądania
-   proxowane przez ARR (klasyczna pułapka).
-
-2. W regule `portal-api-proxy` USUŃ (albo zostaw zakomentowaną) linię:
-
-       <set name="HTTP_X_AUTH_USER" value="{LOGON_USER}" />
-
-   Jest martwa architektonicznie i tylko myli. `HTTP_X_FORWARDED_FOR` zostaje!
-   Wpis `HTTP_X_AUTH_USER` na liście Allowed Server Variables może zostać —
-   moduł z niego nie korzysta, obecność nie szkodzi.
-
-Gdyby IIS zgłosił „section locked" przy zapisie:
-
-    %windir%\system32\inetsrv\appcmd unlock config -section:system.webServer/modules
-
-## Krok 5 — frontend
-
-Podmień `D:\portal\frontend\js\declared-identity.js` plikiem z paczki
-(sonda whoami zawsze pierwsza; przy 200 stara deklaracja z localStorage
-czyści się sama). W przeglądarce odśwież z pominięciem cache (Ctrl+F5).
-
-## Krok 6 — testy (konsola #2, bez uprawnień administratora)
-
-1. SSO bieżącym kontem (z sesji RDP jesteś zalogowany jako Ty):
+   Sukces = brak komunikatu. „File in use" → `appcmd recycle apppool "portal"`
+   i ponów. Weryfikacja: `dir D:\portal\frontend\bin` (świeża data DLL).
+4. **web.config** (`D:\portal\frontend\web.config`, wzorzec: `deploy/iis/web.config`):
+   sekcja `<modules>` z wpisem modułu (bez `preCondition`!) jako dziecko
+   `<system.webServer>`; linia `HTTP_X_AUTH_USER` w regule rewrite zakomentowana;
+   `HTTP_X_FORWARDED_FOR` zostaje. **Po zapisie: weryfikacja z lekcji nr 2.**
+5. **Frontend**: `frontend/js/declared-identity.js` w wersji z sondą whoami
+   (repo). W przeglądarce Ctrl+F5.
+6. **Testy — wyłącznie ze stacji roboczej** (loopback check blokuje testy
+   z serwera po aliasie; KB896861):
 
        curl.exe --ntlm -u : "http://arimr-app.zszik.pl/api/whoami" --noproxy "*" -i
 
-   Oczekiwane: `200`, `{"login":"maciej.mysliwiec","groups":["maciej.mysliwiec","wszyscy"]}`.
+   → 200 i login testującego. Anty-podszycie: to samo z
+   `-H "X-Auth-User: abcde"` → nadal prawdziwy login. Przeglądarka → portal
+   bez okna deklaracji (systemowe okno hasła = brak wpisu strefy Intranet
+   lokalny na stacji — inetcpl.cpl, docelowo GPO). Audyt:
+   `SELECT TOP 10 * FROM v_audit_log_pl ORDER BY id DESC` → wpisy SUCCESS
+   z loginem i IP stacji.
 
-2. Próba podszycia się nagłówkiem — moduł ma nadpisać:
+## Rollback
 
-       curl.exe --ntlm -u : -H "X-Auth-User: prezes" -H "X-Auth-Dept: kadry" "http://arimr-app.zszik.pl/api/whoami" --noproxy "*" -i
-
-   Oczekiwane: nadal Twój login, bez śladu „prezesa" i „kadr". To jest test,
-   który warto pokazać przełożonemu — audyt przestał być deklaracją.
-
-3. Bez uwierzytelnienia w ogóle:
-
-       curl.exe "http://arimr-app.zszik.pl/api/whoami" --noproxy "*" -i
-
-   Oczekiwane: `401` od IIS (challenge NTLM/Negotiate) — żądanie nie dociera
-   do aplikacji.
-
-4. Przeglądarka na stacji: F5 → portal **bez okna deklaracji**, login w hero.
-   W bazie (konsola #2):
-
-       sqlcmd -S localhost -d portal -E -Q "SELECT TOP 5 ts_pl, username, client_ip, path, status, http_status FROM v_audit_log_pl ORDER BY id DESC"
-
-   Oczekiwane: wpisy z prawdziwym loginem i adresem IP stacji, czas polski.
-
-5. Testerzy z wcześniejszą deklaracją: nic nie muszą robić — nowy frontend
-   sam czyści zapis. Ręczna alternatywa: w konsoli F12 `PortalIdentity.clear()`.
-
-## Rollback (w minutę)
-
-- Wyłączenie samego modułu: usuń wiersz `<add name="PortalAuthUserHeader" ...>`
-  z web.config. Portal dalej działa: whoami zwróci 401, frontend pokaże okno
-  deklaracji (tryb declared „przez" Windows Auth).
-- Pełny powrót do stanu sprzed Windows Auth: dodatkowo Authentication →
-  Anonymous **Enable**, Windows Authentication **Disable**.
-- Pula może zostać na v4.0 (nieszkodliwa), DLL może zostać w bin (martwy bez
-  wpisu w web.config).
+Usunięcie wpisu `<add name="PortalAuthUserHeader" .../>` z web.config wyłącza
+moduł (whoami → 401, frontend pokaże okno deklaracji — tryb declared przez
+Windows Auth). Pełny powrót: dodatkowo Anonymous Enable + Windows Auth Disable.
+Pula może zostać na v4.0; DLL w bin jest martwa bez wpisu.
 
 ## Najczęstsze potknięcia
 
-- `500.19` po kroku 4 → literówka w `type` (wielkość liter się liczy) albo
-  sekcja `<modules>` zablokowana (patrz appcmd unlock wyżej).
-- Moduł „nie działa" dla /api, statyka OK → wpis ma `preCondition="managedHandler"`
-  — usuń ten atrybut.
-- `csc.exe` nie znaleziony → użyj pełnej ścieżki z kroku 3 (Framework64).
-- Test 1 zwraca 401 mimo poprawnej konfiguracji → sprawdź, czy pula po zmianie
-  wersji CLR wystartowała (IIS Manager → Application Pools → Status: Started).
+- Moduł „nie działa", login pusty, zero śladów → wpis w `<modules>` nie
+  istnieje w scalonej konfiguracji (lekcja nr 2) albo plik edytowany bez
+  uprawnień (lekcja nr 3).
+- `500.19` → literówka w `type` (wielkość liter!) albo sekcja zablokowana:
+  `appcmd unlock config -section:system.webServer/modules`.
+- Moduł omija /api, statyka OK → wpis ma `preCondition="managedHandler"` — usuń atrybut.
+- Testy z serwera zwracają 401.1 HTML → loopback check, nie błąd konfiguracji.

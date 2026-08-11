@@ -11,7 +11,7 @@ spring:
     username: portal_dev
     password: ${PORTAL_DEV_DB_PASSWORD:PortalDev123!}
   flyway:
-    # Dev dokleja seedy (V100+) do migracji schematu; prod widzi tylko db/migration.
+    # Dev dokleja seedy (migracje R__, zawsze po wersjonowanych) - prod widzi tylko db/migration.
     locations: classpath:db/migration,classpath:db/migration-dev
   web:
     resources:

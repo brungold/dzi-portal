@@ -76,15 +76,16 @@ class DeclaredSecurityConfiguration {
         return args -> log.warn("""
 
                 ==========================================================================
-                 PROFIL DECLARED: TOŻSAMOŚĆ (login+departament) JEST DEKLAROWANA,
-                 NIE UWIERZYTELNIANA — ADR-0003 + ADR-0005.
-                  - serwer ufa nagłówkom z adresów: loopback + CIDR-y: {}
-                  - uprawnienia żądania = login+departament+wszyscy vs tile_permissions;
-                    kafelek jest widoczny dla każdego, kto zna adres i departament
-                  - kompensacje: audyt append-only każdej deklaracji (kto, co, skąd),
-                    limit żądań ({}/min) i blokada adresu deklarującego
-                    >{} loginów w oknie {}
-                  - ZAKAZ danych wrażliwych za kafelkami w tym trybie (ADR-0005)
+                 PROFIL DECLARED: aplikacja UFA nagłówkowi X-Auth-User z zaufanych
+                 źródeł (loopback + CIDR-y: {}).
+                  - PROD: nagłówek wypełnia moduł IIS PO Windows Authentication —
+                    login jest UWIERZYTELNIONY i niepodrabialny, a X-Auth-Dept od
+                    klienta jest usuwany (ADR-0006); departament wróci z modułem v2
+                  - DEV (bez IIS): nagłówek pochodzi z deklaracji frontendu lub
+                    dev-fallbacku — tożsamość NIE jest wtedy uwierzytelniana
+                  - uprawnienia żądania = login+wszyscy vs tile_permissions
+                  - kompensacje: audyt append-only (kto, co, skąd), limit żądań
+                    ({}/min) i blokada adresu deklarującego >{} loginów w oknie {}
                 ==========================================================================""",
                 properties.allowedCidrs().isEmpty() ? "(brak — tylko loopback)" : properties.allowedCidrs(),
                 properties.maxRequestsPerMinute(),

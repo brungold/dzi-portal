@@ -5,7 +5,7 @@
 # ======================================================================
 <#
 .SYNOPSIS
-  Etap 1: konfiguracja IIS dla portal.dzi.pl — Windows Auth (Negotiate przed NTLM),
+  Etap 1: konfiguracja IIS dla arimr-app.zszik.pl — Windows Auth (Negotiate przed NTLM),
   ARR proxy, allowed server variables, witryna 443 + web.config z regula proxy do Springa.
 
 .NOTES
@@ -20,8 +20,8 @@
 [CmdletBinding()]
 param(
     [Parameter(Mandatory = $true)][string]$CertThumbprint,
-    [string]$SiteName     = 'portal.dzi.pl',
-    [string]$HostName     = 'portal.dzi.pl',
+    [string]$SiteName     = 'arimr-app.zszik.pl',
+    [string]$HostName     = 'arimr-app.zszik.pl',
     [string]$PhysicalPath = 'D:\portal\www',
     [string]$AppPoolName  = 'PortalPool'
 )
