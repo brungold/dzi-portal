@@ -38,3 +38,8 @@ portal:
       # Nagłówek z deklarowanym departamentem (skrót z AD extensionattribute12,
       # np. dzi/dag/dpb; serwer normalizuje do małych liter). ADR-0005.
       dept-header: X-Auth-Dept
+
+  # Strażnik modułów (ADR-0007): katalog bazowy /apps NA ZEWNĄTRZ witryny IIS.
+  # Pierwszy segment URL-a pod /apps/ = podkatalog = code kafelka w tile_permissions.
+  apps:
+    base-dir: D:/portal/apps

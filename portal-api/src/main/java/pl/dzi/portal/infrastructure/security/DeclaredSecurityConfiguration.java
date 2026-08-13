@@ -21,6 +21,7 @@ import org.springframework.security.config.annotation.web.configurers.AbstractHt
 import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.AnonymousAuthenticationFilter;
+import pl.dzi.portal.apps.AppsAuthenticationEntryPoint;
 
 import java.time.Clock;
 
@@ -66,6 +67,30 @@ class DeclaredSecurityConfiguration {
                 .csrf(AbstractHttpConfigurer::disable)
                 .requestCache(cache -> cache.disable())
                 .exceptionHandling(handling -> handling.authenticationEntryPoint(new ApiAuthenticationEntryPoint()))
+                .addFilterBefore(declaredFilter, AnonymousAuthenticationFilter.class);
+        return http.build();
+    }
+
+    /**
+     * Łańcuch dla /apps/** w trybie declared (ADR-0007). Order -9: przed appsFilterChain
+     * z SecurityConfig (@Order(2)) — analogicznie do pary -10/1 dla /api. Osobna instancja
+     * filtra (filtr jest per łańcuch), współdzielone properties i limiter.
+     */
+    @Bean
+    @Order(-9)
+    SecurityFilterChain declaredAppsFilterChain(HttpSecurity http,
+                                                PortalSecurityProperties securityProperties,
+                                                DeclaredIdentityProperties declaredProperties,
+                                                DeclaredRateLimiter rateLimiter) throws Exception {
+        var declaredFilter = new DeclaredHeaderAuthenticationFilter(
+                securityProperties, declaredProperties, rateLimiter);
+        http
+                .securityMatcher("/apps/**")
+                .authorizeHttpRequests(auth -> auth.anyRequest().authenticated())
+                .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
+                .csrf(AbstractHttpConfigurer::disable)
+                .requestCache(cache -> cache.disable())
+                .exceptionHandling(handling -> handling.authenticationEntryPoint(new AppsAuthenticationEntryPoint()))
                 .addFilterBefore(declaredFilter, AnonymousAuthenticationFilter.class);
         return http.build();
     }

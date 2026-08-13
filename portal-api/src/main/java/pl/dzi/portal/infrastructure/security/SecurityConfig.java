@@ -20,6 +20,7 @@ import org.springframework.security.config.annotation.web.configurers.AbstractHt
 import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.AnonymousAuthenticationFilter;
+import pl.dzi.portal.apps.AppsAuthenticationEntryPoint;
 
 /**
  * Konfiguracja security — jawna i w całości pod kontrolą (bez form-loginu, basic auth i sesji).
@@ -59,13 +60,36 @@ public class SecurityConfig {
     }
 
     /**
-     * Wszystko poza /api/**: jawne deny-by-default. Jedyny wyjątek to health/info
+     * Łańcuch dla /apps/** (ADR-0007): moduły aplikacyjne przechodzą przez aplikację,
+     * nie przez statykę IIS. Tożsamość jak w /api (ten sam filtr nagłówka, osobna
+     * instancja — filtr jest per łańcuch); RBAC per kafelek egzekwuje AppsController
+     * jawnie przez AccessFacade, bo odmowa ma być stroną HTML, nie JSON-em.
+     */
+    @Bean
+    @Order(2)
+    SecurityFilterChain appsFilterChain(HttpSecurity http,
+                                        AdGroupResolver adGroupResolver,
+                                        PortalSecurityProperties properties) throws Exception {
+        var headerAuthenticationFilter = new LoopbackHeaderAuthenticationFilter(adGroupResolver, properties);
+        http
+                .securityMatcher("/apps/**")
+                .authorizeHttpRequests(auth -> auth.anyRequest().authenticated())
+                .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
+                .csrf(AbstractHttpConfigurer::disable)
+                .requestCache(cache -> cache.disable())
+                .exceptionHandling(handling -> handling.authenticationEntryPoint(new AppsAuthenticationEntryPoint()))
+                .addFilterBefore(headerAuthenticationFilter, AnonymousAuthenticationFilter.class);
+        return http.build();
+    }
+
+    /**
+     * Wszystko poza /api/** i /apps/**: jawne deny-by-default. Jedyny wyjątek to health/info
      * (sonda WinSW i diagnostyka) — i tak dostępne tylko z maszyny (bind na loopbacku).
      * W dev PRZED tym łańcuchem stoi devStaticFilterChain (statyczny frontend) — patrz
      * DevSecurityConfiguration; w prod tego beana nie ma i deny-all obowiązuje bez wyjątków.
      */
     @Bean
-    @Order(2)
+    @Order(3)
     SecurityFilterChain fallbackFilterChain(HttpSecurity http) throws Exception {
         http
                 .authorizeHttpRequests(auth -> auth

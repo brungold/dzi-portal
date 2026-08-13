@@ -12,6 +12,7 @@ package pl.dzi.portal.infrastructure.web;
 import org.springframework.boot.web.servlet.FilterRegistrationBean;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import pl.dzi.portal.apps.AppsAuditPolicy;
 import pl.dzi.portal.common.audit.AuditWriter;
 import pl.dzi.portal.infrastructure.audit.AuditFilter;
 
@@ -30,7 +31,7 @@ class WebFiltersConfiguration {
     FilterRegistrationBean<CorrelationIdFilter> correlationIdFilterRegistration() {
         var registration = new FilterRegistrationBean<>(new CorrelationIdFilter());
         registration.setOrder(-120);
-        registration.addUrlPatterns("/api/*");
+        registration.addUrlPatterns("/api/*", "/apps/*");
         return registration;
     }
 
@@ -42,11 +43,25 @@ class WebFiltersConfiguration {
         return registration;
     }
 
+    /**
+     * Osobna rejestracja dla /apps/* (ADR-0007): ten sam filtr, inna polityka —
+     * dokument + dane + wszystkie odmowy; zasoby towarzyszące (css/js/img) poza rejestrem.
+     * Polityka tworzona wprost (new), jak filtry powyżej: to konfiguracja rejestracji,
+     * nie samodzielny bean do wstrzykiwania.
+     */
+    @Bean
+    FilterRegistrationBean<AuditFilter> appsAuditFilterRegistration(AuditWriter auditWriter) {
+        var registration = new FilterRegistrationBean<>(new AuditFilter(auditWriter, new AppsAuditPolicy()));
+        registration.setOrder(-110);
+        registration.addUrlPatterns("/apps/*");
+        return registration;
+    }
+
     @Bean
     FilterRegistrationBean<SameOriginRequestFilter> sameOriginRequestFilterRegistration() {
         var registration = new FilterRegistrationBean<>(new SameOriginRequestFilter());
         registration.setOrder(-105);
-        registration.addUrlPatterns("/api/*");
+        registration.addUrlPatterns("/api/*", "/apps/*");
         return registration;
     }
 }

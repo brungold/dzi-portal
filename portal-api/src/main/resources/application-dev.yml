@@ -31,3 +31,8 @@ portal:
         - DZI-Portal-Raporty-Odczyt
       viewer:
         - DZI-Portal-Raporty-Odczyt
+
+  # Strażnik modułów (ADR-0007): w dev moduły leżą w apps/ na poziomie głównym repo
+  # (ścieżka względem katalogu portal-api — tak jak static-locations wyżej).
+  apps:
+    base-dir: ../apps

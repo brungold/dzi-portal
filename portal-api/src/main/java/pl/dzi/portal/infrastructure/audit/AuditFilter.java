@@ -25,7 +25,8 @@ import pl.dzi.portal.infrastructure.web.PortalRequestAttributes;
 import java.io.IOException;
 
 /**
- * Audyt KAŻDEGO żądania /api/*. Filtr jest zarejestrowany PRZED łańcuchem Spring Security
+ * Audyt żądań /api/* (każde) i /apps/* (selektywnie — AuditPolicy, ADR-0007/D3).
+ * Filtr jest zarejestrowany PRZED łańcuchem Spring Security
  * (WebFiltersConfiguration), więc oplata go w całości: mierzy pełny czas i widzi też odmowy
  * (401/403) — próby obejścia UI to dokładnie to, co audytor chce zobaczyć.
  *
@@ -44,6 +45,12 @@ public final class AuditFilter extends OncePerRequestFilter {
     private static final String UNKNOWN_USER = "-";
 
     private final AuditWriter auditWriter;
+    private final AuditPolicy auditPolicy;
+
+    /** Zachowanie sprzed ADR-0007: audyt każdego żądania (tak rejestruje się /api/*). */
+    public AuditFilter(AuditWriter auditWriter) {
+        this(auditWriter, AuditPolicy.ALWAYS);
+    }
 
     @Override
     protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain filterChain)
@@ -65,7 +72,8 @@ public final class AuditFilter extends OncePerRequestFilter {
         // 304 = "nic się nie wydarzyło" (polling ETag) — bez wpisu. Wcześniejsza wersja używała
         // finally (stąd poprawka z commitu 32 o return-w-finally); po rozdzieleniu ścieżek
         // wyjątek ma własny zapis powyżej, a finally nie jest już potrzebne.
-        if (response.getStatus() != HttpServletResponse.SC_NOT_MODIFIED) {
+        if (response.getStatus() != HttpServletResponse.SC_NOT_MODIFIED
+                && auditPolicy.shouldWrite(request, response.getStatus())) {
             writeEntrySafely(request, elapsedMs(startNanos), response.getStatus());
         }
     }

@@ -51,7 +51,9 @@ class DevSecurityConfiguration {
     SecurityFilterChain devStaticFilterChain(HttpSecurity http) throws Exception {
         http
                 .securityMatcher("/", "/*.html", "/*.js", "/*.css", "/favicon.ico",
-                        "/css/**", "/js/**", "/lib/**", "/img/**", "/assets/**", "/apps/**")
+                        // /apps/** celowo NIEOBECNE (ADR-0007): moduły idą przez strażnika
+                        // także w dev — permitAll tutaj czyniłoby testy lokalne kłamstwem.
+                        "/css/**", "/js/**", "/lib/**", "/img/**", "/assets/**")
                 .authorizeHttpRequests(auth -> auth.anyRequest().permitAll())
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .csrf(AbstractHttpConfigurer::disable);
