@@ -1,4 +1,9 @@
-# Reguła URL Rewrite: /apps/* → aplikacja (ADR-0007)
+# Reguła URL Rewrite: /apps/* → aplikacja (ADR-0007) — DOKUMENT HISTORYCZNY
+
+> **Stan od 2026-09-08:** reguła `portal-apps-proxy` jest scalona do
+> `deploy/iis/web.config` (plik = stan serwera). Ten opis zostaje jako zapis
+> procedury wdrożenia z 2026-08-13; przy odtwarzaniu serwera używaj `web.config`,
+> nie tego dokumentu.
 
 Edycja `D:\portal\frontend\web.config` — **Notatnik jako administrator** (lekcja
 z sekcji <modules>: bez elevacji zapis idzie po cichu gdzie indziej).

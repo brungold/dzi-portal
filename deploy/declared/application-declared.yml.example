@@ -1,0 +1,39 @@
+# ======================================================================
+# Portal DZI — wewnętrzny portal kafelkowy departamentu DZI.
+# Autor: Maciej Myśliwiec, 2026.
+# ======================================================================
+# SZABLON pliku D:\portal\api\config\application-declared.yml (serwer).
+#
+# Spring Boot ładuje ten plik z podkatalogu config\ katalogu roboczego usługi
+# (D:\portal\api) DODATKOWO do application-declared.yml wbudowanego w jar;
+# klucze stąd nadpisują klucze z jara. Jar NIE zawiera żadnego datasource —
+# bez tego pliku aplikacja nie wstanie ("Failed to configure a DataSource").
+#
+# Plik na serwerze zawiera HASŁO i nigdy nie trafia do repo (.gitignore).
+# Po edycji: Restart-Service portal-api [SERWER #3].
+# ======================================================================
+spring:
+  datasource:
+    url: jdbc:sqlserver://localhost:1433;databaseName=portal;encrypt=true;trustServerCertificate=true
+    username: portal_app
+    password: <UZUPELNIJ>
+  # Łagodne zamknięcie: aplikacja czeka na żądania w toku najwyżej 20 s,
+  # WinSW zabija proces po 30 s (stoptimeout) — kolejność zegarów ma znaczenie.
+  # Klucz MUSI być wcięty pod spring: (lifecycle w pierwszej kolumnie = ignorowany
+  # po cichu). Od paczki kodu #2 ta wartość jest też w jarze; tu może zostać.
+  lifecycle:
+    timeout-per-shutdown-phase: 20s
+
+# Opcjonalne nadpisania kompensacji trybu declared (ADR-0003). Wartości domyślne
+# siedzą w jarze; odkomentuj tylko to, co zmieniasz.
+#portal:
+#  security:
+#    declared:
+#      # Sufit żądań z jednego adresu na minutę — liczy /api ORAZ pliki /apps.
+#      max-requests-per-minute: 120
+#      # Blokada adresu po N różnych loginach w oknie. Przy tożsamości z NTLM
+#      # (ADR-0006) daje głównie fałszywe alarmy (RDS, wspólna stacja, testy
+#      # kilkoma kontami) — próg do podniesienia decyzją administratora.
+#      anomaly-distinct-logins: 3
+#      anomaly-window: 10m
+#      block-duration: 15m

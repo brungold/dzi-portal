@@ -3,6 +3,10 @@
 # Portal DZI — wewnętrzny portal kafelkowy departamentu DZI.
 # Autor: Maciej Myśliwiec, 2026.
 # ======================================================================
+# UWAGA (2026-09-08): skrypt z wariantu A, NIE używany w produkcji `declared`.
+# robocopy /MIR na $WwwRoot KASUJE wszystko, czego nie ma w $FrontendSource —
+# dopóki frontend/ w repo nie jest tożsamy z D:\portal\frontend (powłoka), nie uruchamiać.
+# Wdrożenie samego jara: deploy/deploy-api.ps1 (usługa WinSW, docs/winsw-runbook.md).
 <#
 .SYNOPSIS
   Pelny deploy portalu: stop uslug -> backup -> podmiana jarow + frontendu ->
@@ -19,7 +23,7 @@ param(
     [string]$WorkerJar,
     [string]$FrontendSource,
     [string]$InstallRoot = 'D:\portal',
-    [string]$WwwRoot = 'D:\portal\www',
+    [string]$WwwRoot = 'D:\portal\frontend',
     [switch]$RollbackOnly
 )
 $ErrorActionPreference = 'Stop'

@@ -1,171 +1,128 @@
 # dzi-portal — brief projektu (dla nowych sesji pracy)
 
-Dokument orientacyjny: wklej do wiedzy projektu Claude (Project knowledge) albo załącz
-na starcie nowej rozmowy. **Stan na: 2026-07-31**, po commitach 1–38 (komplet-v4 bez demo).
+Dokument orientacyjny: wklej do wiedzy projektu asystenta albo załącz na starcie
+nowej rozmowy. **Stan na: 2026-09-08** (po WinSW i paczce „repo = serwer").
+Repo jest publiczne — brief nie zawiera loginów użytkowników, adresów ani haseł;
+te rzeczy żyją w bazie i na serwerze.
 
 ## 1. Co to jest
 
-Wewnętrzny **portal kafelkowy DZI** (Java 21, Spring Boot 4.1, SQL Server, 3 moduły Maven:
-portal-common / portal-api / portal-worker). Kafelki = aplikacje HTML (LINK), zbiory danych
-(DATASET: Tabulator, edycja z wersjonowaniem, import XLSX) i zadania (SCRIPT: skrypty PS1
-wykonywane przez osobny proces worker z kolejki w SQL). Uprawnienia zawsze w tabeli
-`tile_permissions` (READ < EXECUTE < EDIT), egzekwowane `@PreAuthorize` + `AccessFacade`.
-Wszystko audytowane, rejestr append-only. Autor: Maciej Myśliwiec (nagłówki w plikach;
-wyjątek: `db/migration/**` — patrz `AUTORSTWO.md`).
+Wewnętrzny **portal kafelkowy DZI/ARiMR**: Java 21, Spring Boot 4.1, SQL Server
+Express 2022, 3 moduły Maven (portal-common / portal-api / portal-worker). Kafelek =
+moduł aplikacyjny (HTML/JS za strażnikiem `/apps`, ADR-0007). Dostępy: zbiór
+{login, departament, `wszyscy`} vs `tile_permissions` (READ < EXECUTE < EDIT).
+Wszystko audytowane (`audit_log`, append-only przez DENY od 2026-09-08).
+Autor: Maciej Myśliwiec (nagłówki w plikach; wyjątki: `AUTORSTWO.md`).
 
-## 2. Dwa warianty tożsamości
-
-Logika, RBAC i audyt są **wspólne**. Różnica jest wyłącznie w tym, skąd bierze się login
-i przynależność.
-
-**Wariant A — z AD (docelowy, profil `prod`):**
+## 2. Architektura produkcyjna (profil `declared`)
 
 ```
-przeglądarka ──Kerberos──> IIS (arimr-app.zszik.pl) ──X-Auth-User──> API (127.0.0.1:8080, gMSA)
-                                                                  │ LDAPS 636 → grupy AD
-                                                        SQL Server ── portal-worker → powershell.exe
+przeglądarka (stacja, Edge) ──NTLM──> IIS (arimr-app.zszik.pl, D:\portal\frontend, serwer DZI-APP01V)
+   moduł C# PortalAuthUserHeader v3.0: X-Auth-User (login) + X-Auth-Dept (pierwsze OU z AD → np. dzi)
+   URL Rewrite + ARR:  /api/*  → 127.0.0.1:8080
+                       /apps/* → 127.0.0.1:8080     ← strażnik (ADR-0007)
+portal-api — usługa Windows (WinSW 2.x, LocalSystem), profil declared, loopback 8080
+   /api: RBAC + audyt pełny;  /apps: plik z D:\portal\apps\<code>\ po sprawdzeniu READ,
+   403/404 = strony HTML, ETag/304, audyt selektywny (APP_OPEN / APP_DATA / APP_DENIED)
+SQL Server Express (baza portal): tiles, tile_permissions, audit_log (+ gotowe, nieużywane:
+   scripts/tasks/task_log, datasets*); widoki v_audit_log_pl, v_task_log_pl; Flyway v13
 ```
 
-**Wariant deklarowany (profil `declared`, ADR-0003)** — gdy integracja z katalogiem
-w runtime jest organizacyjnie niedostępna:
-
-```
-klient (przeglądarka / skrypt PS) ──X-Auth-User + X-Auth-Dept──> API (loopback + CIDR)
-                                                            │ uprawnienia = {login, dept, wszyscy}
-                                                            │ vs tile_permissions
-                                                  SQL Server ── portal-worker → powershell.exe
-```
-
-**ADR-0005 (03.08.2026):** departament jest DEKLAROWANY drugim nagłówkiem (skrót
-z AD `extensionattribute12`: dzi/dag/dpb…), serwer niczego nie sprawdza w katalogu
-ani w bazie. Powód: skala (4 tys. centrala → 11,5 tys. organizacja) czyni rejestr
-`user_departments` i jego synchronizację z kadrami kosztem nie do przyjęcia.
-Decyzję o dostępie do każdego zasobu API nadal podejmuje SERWER (porównanie
-z `tile_permissions`) — po stronie klienta nie ma żadnej logiki dostępu.
-
-Granice, nazwane wprost: kafelek jest widoczny dla każdego, kto zna adres portalu
-i wpisze właściwy skrót departamentu; `wszyscy` = dosłownie każdy, kto dotrze do
-portalu. `tile_permissions` PORZĄDKUJE widoczność, nie chroni danych. Warunki
-przyjęcia: sieć wewnętrzna (monitorowana), ZAKAZ danych osobowych, finansowych
-i kadrowych za kafelkami. Kompensacje z ADR-0003 zostają: loopback/CIDR, limiter
-anomalii, audyt każdej deklaracji (login, departament, adres). Osobno: statyczne
-powłoki HTML kafelków APLIKACJA widzi każdy — treść wrażliwa mieszka za `/api`.
+- Serwer bez internetu, praca przez RDP; testy przeglądarkowe **tylko ze stacji**
+  (loopback check NTLM). Konsole: #1 zwykły PS (dawniej ręczna Java — od Fazy 10
+  zbędna), #2 zwykły PS (sqlcmd, odczyty, kopiowanie z J:), #3 PS admin (IIS,
+  usługa, zapis w `D:\portal`). **J: nie istnieje w sesji admina.**
+- Katalogi: `D:\portal\api` (jar, `portal-api.exe` = WinSW, `portal-api.xml`,
+  `config\application-declared.yml` z hasłem `portal_app`, logi), `D:\portal\apps`
+  (moduły za strażnikiem), `D:\portal\frontend` (witryna IIS: powłoka + assets + `bin\`
+  z DLL modułu), `D:\portal\archiwum`.
+- Profil `prod` (wariant A: Kerberos + grupy AD + LDAP + gMSA) — droga powrotna, nieużywany.
 
 ## 3. Źródło prawdy
 
-- **Kod:** to repozytorium (`master`). Paczka odniesienia: `dzi-portal-komplet-v4-bez-demo`
-  = commity 1–38, z fizycznie usuniętym profilem `demo`. Wszystkie wcześniejsze archiwa
-  (komplet-v2/v3, demo-33, frontend-34/37, fix-35/36) są NADPISANE.
-- **Decyzje:** `docs/adr/0001..0004`; per-commit: `docs/etapy/README-*.md`.
-- **Runbooki:** `docs/deklaracja-runbook.md` (wariant deklarowany — ten realizujemy),
-  `docs/etap1-runbook.md` + `docs/etap6-runbook.md` (wariant A; kroki AD nie stosują się).
-- Wariant zapasowy PostgreSQL: osobne archiwum (NIE nakładka). Blueprint .NET:
-  `szablon-opcja1-aspnetcore.md` (dokument, bez kodu).
+- **Repo:** `github.com/brungold/dzi-portal` (PUBLICZNE na czas prac — po zakończeniu
+  przełączyć na private). Obieg: DOM (IntelliJ + git) → LAPTOP (świeży ZIP, `mvn clean
+  package`, bez gita) → SERWER (artefakty przez J:). Wariant „pliki najpierw na
+  serwer" zdarzył się trzy razy — wtedy repo dogania serwer tego samego tygodnia.
+- **Od 2026-09-08 repo = serwer** dla: modułu IIS (v3.0), `web.config`, `portal-api.xml`
+  (`deploy/winsw/portal-api.declared.xml`), struktury `config\application-declared.yml`
+  (`.example`), czterech modułów w `apps/` (kod, bez danych).
+  **Wyjątki (otwarte):** `frontend/` (powłoka na serwerze vs `index.html` z commitu 37),
+  agregaty ReD (`red-dashboard.js`, `data/`, skrypt generujący).
+- Decyzje: `docs/adr/0001..0008`; historia paczek: `docs/etapy/`; eksploatacja:
+  `docs/winsw-runbook.md`, `deploy/iis/INSTRUKCJA-MODUL-WINDOWS-AUTH.md`, `apps/README.md`.
 
-## 4. Historia w pigułce (commity)
+## 4. Baza (stan 2026-09-08)
 
-| # | Zakres |
-|---|---|
-| 1–30 | Etapy 0–6: fundament+audyt → IIS/Kerberos → kafelki RBAC → zadania+worker → zbiory+XLSX → ETag/hardening/deploy |
-| 31–32 | przeglądy seniorskie: izolacja testów, SID-y zamiast nazw grup lokalnych, 400 dla złych wejść, pool schedulera=2 |
-| 33 | profil `demo` (portal bez bazy) — **następnie usunięty**, patrz ADR-0004 |
-| 34+37 | strona główna renderowana z `/api/tiles`, identyfikacja ARiMR, kolor kafelka koduje rodzaj, CSP bez inline JS, zero CDN |
-| 35 | fix: BOM testcontainers w pomie nadrzędnym (bez niego Maven nie wczytywał modułów) |
-| 36 | fix: checksumy Flyway — ZAKAZ nagłówków autorstwa w `db/migration/**` |
-| 37 | fix: wzorce statyki dev (`/css/**`, `/js/**`, `/apps/**`) |
-| 38 | **profil `declared`** (ADR-0003): filtr nagłówka, limiter anomalii, resolver grup z SQL, konfiguracja security, migracja V4 (`user_departments`), `application-declared.yml`, testy, skrypt eksportu z AD, runbook |
-| 41 | **deklarowany departament** (ADR-0005): drugi nagłówek `X-Auth-Dept`, uprawnienia {login, dept, wszyscy} bez rejestru użytkowników; okno z polem departamentu; klient `portal-client.ps1`; usunięty `DeclaredDbGroupResolver`; `user_departments`+V4 zostają nieużywane |
-| — | ADR-0004: fizyczne usunięcie profilu `demo` (9 plików); `prod,demo` nie jest już dostępne jako tryb testowy bez bazy |
+- Konta SQL: `portal_app` (aplikacja: `db_ddladmin` + reader + writer — Flyway),
+  dwa konta robocze administratorów (reader + writer). Właściciel bazy = konto
+  Windows administratora instancji (sysadmin). Żadne konto runtime nie jest `db_owner`.
+- `audit_log`: DENY UPDATE/DELETE dla wszystkich trzech kont (`deploy/sql/prod-grants.sql`).
+- Kafelki (4, wszystkie LINK, `display_order` co 10): `red-pisma-sprawy` (10),
+  `m365_copilot_instrukcja_instalacji` (20), `epo-podpis` (30),
+  `analiza_obecnosci_raporty_AUREA` (40). Uprawnienia: loginy imienne, poziom READ.
+- Schemat wyłącznie przez migracje (V14+); dane (`tiles`, `tile_permissions`) —
+  swobodnie SSMS/sqlcmd (`USE portal; GO` — SSMS startuje w `master`).
+- Loginy AD w organizacji mają **mieszany format** (nazwisko.imię / imię.nazwisko /
+  sufiksy cyfrowe). Nie zgadywać: weryfikacja w `v_audit_log_pl` po pierwszym wejściu
+  osoby; zła pisownia = kafelek niewidoczny bez błędu.
 
 ## 5. Środowisko dev (laptop)
 
-- SDK **corretto-21** / Temurin 21; Maven 3.9.x. Projekt otwierany przez `pom.xml`.
-- SQL Express: `localhost,1433` (tryb mieszany, TCP włączone), baza `portal_dev`,
-  login `portal_dev` (jawna domyślka dev — NIE sekret prod).
-- Profile uruchomieniowe: `dev` (klasycznie) albo `dev,declared` (tryb deklarowany).
-  Working directory = katalog modułu (`portal-api` / `portal-worker`) — ścieżki
-  do frontendu i skryptów są **względne**.
-- W `dev,declared` dev-fallback (`tester`) **nie działa** — deklarację (login
-  + departament) trzeba przysłać jawnie nagłówkami.
-- **Tryb bez bazy nie istnieje.** Profil `demo` usunięty (ADR-0004) — start bez bazy
-  kończy się fail-fast. To świadomy koszt tej linii źródeł.
-- URL: `http://localhost:8080/index.html`.
+IntelliJ CE, SDK 21; SQL Express `localhost,1433`, baza `portal_dev`, login
+`portal_dev` (jawna domyślka dev z `deploy/sql/dev-setup.sql`). Run config API:
+`PortalApiApplication`, profil `dev`, working dir = `portal-api`. Seed dev używa nazw
+grup AD (wariant A) — pod `dev,declared` widać 0 kafelków, dopóki seed nie dostanie
+wiersza `wszyscy`. `mvn clean verify` — testy jednostkowe; `*IT` tylko z Dockerem.
 
-## 6. Klasyczne pułapki (już przerobione — nie powtarzać diagnozy)
+## 6. Pułapki (przerobione — nie odkrywać ponownie)
 
-1. Rozpakowywanie zipów: wrzucać **zawartość** folderu z archiwum, nie sam folder.
-2. Pliki `.java` w `resources` zamiast `src/main/java` → ClassNotFound.
-3. Brak aktywnego profilu → „Failed to configure a DataSource".
-4. `Connection refused :1433` → SQL Express ma TCP wyłączone fabrycznie.
-5. SSMS: `localhost,1433` z **przecinkiem**; zaznaczyć zaufanie certyfikatowi.
-6. `Migration checksum mismatch` → ktoś dotknął plików w `db/migration/**` (zakaz!).
-7. OneDrive na Pulpicie potrafi blokować `target/` przy budowie.
-8. W tabeli `tiles` kolumna nazywa się **`name`**, nie `title`.
-9. „Apache" w tym projekcie = **Apache POI** (biblioteka w JAR-ze), nie Apache HTTP Server.
+1. PowerShell w `"..."` podstawia `$slowo` — hasła z `$` zostają okrojone; znaki
+   bezpieczne `# ! @ *`; hasło w komendzie = w historii (`Clear-History`) i na ekranie.
+2. `curl -H "X:"` USUWA nagłówek, `-H "X;"` wysyła pusty; NTLM: `--ntlm -u :`.
+3. Po edycji `web.config` (Notatnik jako admin) zawsze `appcmd list config "portal"`
+   dla `modules` i `rewrite/rules`. Kernel-mode auth ON.
+4. Windows ukrywa rozszerzenia — `index` bez `.html` = plik do pobrania.
+5. `<name>` w XML wyświetla się w oknach czatu jako `<n>` — pliki z serwera są
+   poprawne; kopie z czatu porównać `fc.exe` przed użyciem.
+6. `Get-Content` bez `-Encoding UTF8` krzaczy polskie znaki; sqlcmd: `-f 65001`
+   + literały `N'...'`; do wklejania wyników `-W -w 250`.
+7. WinSW 2.x: komendy bez myślników (`version`). Zegary: graceful 20 s < `stoptimeout` 30 s.
+8. Katalog modułu na serwerze jest serwowany w całości: `app_v1.js`, `index_old.html`
+   są dostępne pod swoim URL-em każdemu uprawnionemu — wersje robocze poza `/apps`.
+9. Migracje Flyway: żadnych nagłówków autorskich w `db/migration/**` (checksumy).
+10. `deploy/deploy.ps1` (wariant A) robi `robocopy /MIR` na witrynę — nie uruchamiać.
 
-## 7. Testy — stan faktyczny (zweryfikowany w master 31.07.2026)
+## 7. Otwarte tematy (kolejność ważności)
 
-- Relokacja `@WebMvcTest` (Boot 4.1) jest już naniesiona — cztery pliki testowe
-  importują `org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest`.
-- `TilesConfiguration`, `TileRepository`, `TilePermissionRepository` są `public`.
-- Oczekiwanie: `mvn clean verify` zielony (klasy `*IT` bez Dockera pomijają się same).
-  Przy niespodziewanym FAIL wdrożenia nie blokować:
-  `mvn clean package -Dmaven.test.skip=true` i wrócić z logiem.
+1. **Biuro:** test A (przeglądarka po przejściu na usługę), test odmowy 403
+   (jedyny niewykonany punkt akceptacji strażnika: `active=0` na kafelku → „Brak
+   dostępu" + `APP_DENIED`), Faza 12 (restart serwera, `BackConnectionHostNames`).
+2. **Repo = serwer, reszta:** listing `D:\portal\frontend` i `apps\red-pisma-sprawy`
+   → decyzja o powłoce (Piotra vs commit 37) i agregatach ReD; wersje robocze
+   AUREA (`_v1..v4`, `_old`) do skasowania z serwera.
+3. **Paczka kodu #2 (jar):** audyt `data/` + `pdf/xml/txt` w `AppsAuditPolicy`,
+   baner `declared` (tekst o module v2), 20 s w `application.yml`, komentarz
+   `extensionattribute12` → OU. Osobno, po przebiegu testów: `DevSecurityConfiguration`
+   → `@Profile("dev")` z ogrodzeniem wariantu A w `SecurityConfig`.
+4. **Decyzje administratora:** próg blokady >3 loginów z adresu (fałszywe alarmy
+   przy NTLM) — `application-declared.yml.example`; podstawa danych innych
+   departamentów w module AUREA; konto usługi (LocalSystem → NetworkService).
+5. **Panel administracyjny** (Faza A tylko do odczytu: wszystkie kafelki, kto widzi,
+   co widzi dana osoba, wyświetlenia z audytu, loginy nieznane w audycie; Faza B:
+   nadawanie/odbieranie uprawnień z `@Audited`, CSRF przez nagłówek + JSON,
+   nietykalny kafelek `administracja`; potem zdjęcie `db_datawriter` z kont roboczych).
+   Rewiduje „bez panelu, celowo" — ADR-0009.
+6. Hasło `portal_app` poza plikiem jawnym; TLS (dziś HTTP); retencja audytu przez
+   Task Scheduler; strefa Intranet przez GPO; repo → private po zakończeniu prac.
 
-## 8. Zarządzanie dostępami (bez panelu — celowo)
+## 8. Konwencje współpracy z asystentem (utrzymywać!)
 
-- **Wariant A:** kto należy do roli → AD (grupy `DZI-Portal-*`). Co rola może → SQL
-  (`tile_permissions`).
-- **Wariant deklarowany (ADR-0005):** kto czym jest → DEKLARACJA klienta (login
-  + skrót departamentu z AD `extensionattribute12`). Co kto może → SQL
-  (`tile_permissions.ad_group` = skrót departamentu ALBO login — można mieszać,
-  np. cały `dag` + dwie osoby imiennie; `wszyscy` = kafelek publiczny).
-  Portal nie prowadzi rejestru użytkowników; `export-user-departments.ps1`
-  pozostaje w repo jako narzędzie nieaktywnego wariantu z rejestrem.
-- Serwer aplikacyjny: nic. Próg panelu admina (Etap 7): >15–20 kafelków albo zmiany
-  częściej niż raz na miesiąc.
-
-## 9. Otwarte tematy (stan na dziś)
-
-- **Wdrożenie serwerowe w toku**, wariant deklarowany, samodzielnie (bez zespołu
-  infrastruktury). Przygotowane: dysk danych i układ katalogów, JDK 21, SQL Express
-  (instancja domyślna, tryb mieszany, TCP 1433), baza i login aplikacyjny, IIS
-  z URL Rewrite + ARR (proxy włączone). Pozostało: budowa paczki i przeniesienie,
-  rozłożenie plików, `application-declared.yml`, start z konsoli, usługa WinSW,
-  witryna IIS + reguła rewrite `/api`, weryfikacja, dane (`user_departments`, `tiles`,
-  `tile_permissions`), worker, test restartu. **Dziennik wdrożenia prowadzony poza
-  repozytorium** (dyscyplina bus-factor-2: konta imienne, wpis po każdej fazie).
-- **Rozstrzygnięte 03.08.2026 (ADR-0005): deklarowany departament.** Drugi nagłówek
-  `X-Auth-Dept`; uprawnienia żądania {login, dept, wszyscy}; bez rejestru
-  użytkowników. Warunki: sieć wewnętrzna, zakaz danych wrażliwych. Paczka 41.
-- **Rozstrzygnięte 31.07.2026: tożsamość deklarowana przez klienta (skrypt PowerShell).**
-  Witryna IIS **bez Windows Authentication** — wyłącznie terminator TLS i reverse proxy;
-  nagłówek `X-Auth-User` przychodzi od klienta i IIS go **nie nadpisuje** (odwrotnie niż
-  w wariancie A). ARR: „Include TCP port from client IP" MUSI być odznaczone — inaczej
-  limiter anomalii kluczuje po porcie efemerycznym i nigdy nie zadziała.
-  Powrót do wariantu A pozostaje otwarty; progi rewizji w ADR-0003.
-  Przeglądarka również deklaruje (paczka 40): `frontend/js/declared-identity.js`
-  sonduje `/api/whoami`, przy 401 pokazuje okno deklaracji i dokłada `X-Auth-User`
-  do każdego wywołania `/api`; w wariancie A / dev (sonda 200) jest przezroczysty.
-- Publikacja zasobów: zbiory XLSX (kafelki DATASET), statyczne aplikacje HTML (LINK),
-  skrypty PS1/Python (SCRIPT, Python przez wrapper .ps1). Kandydat: arkusz ~293 rekordów
-  systemów/modułów jako kafelek DATASET.
-- Demo dla kierownictwa, potem formalne zatwierdzenie.
-- Świadomie poza zakresem z progami: circuit breaker LDAP, sufit pollingu w UI, typ
-  skryptu `PY`, kolumna `category` kafelka, nagłówki bezpieczeństwa w IIS, interfejs
-  `AuditWriter`. Odłożone w ADR-0003: hasła lokalne (argon2id) i mTLS — wracają przy
-  pierwszym kafelku z danymi wrażliwymi albo pierwszym incydencie podszycia.
-
-## 10. Konwencje współpracy z asystentem (utrzymywać!)
-
-Po polsku, zwięźle. Kod dostarczany jako **paczki zip** w strukturze repo + README
-z tabelą zmian i planem commitów; przed spakowaniem walidacja spójności (klamry
-z odjęciem literałów, asercje obecności/zakazu, parse XML/YAML, nagłówki autorstwa
-w plikach nie-migracyjnych); **sędzią jest build u usera** — kod powstaje bez kompilacji.
-Wersje pinowane (POI 5.3.0, Tabulator 6.5.2 zvendorowany, testcontainers 1.20.4).
-Przy wsparciu uruchomieniowym: jeden krok naraz, dokładne kliknięcia, prośba o log/zrzut
-po każdym kroku. Uczciwe przyznawanie się do błędów paczek i jawne zastrzeżenia granic.
-
----
-
-*Autor: Maciej Myśliwiec, 2026. Szczegóły: `AUTORSTWO.md`.*
+Po polsku, zwięźle, **jeden krok naraz**, po każdym kroku log/zrzut (przy
+niepewności: tekst, nie zdjęcie). Wyjaśnienie „po ludzku" PRZED komendą, etykieta
+miejsca `[STACJA] [SERWER #2/#3] [DOM] [LAPTOP]`. Kod jako paczki ZIP w strukturze
+repo + README z tabelą zmian; walidacja spójności przed spakowaniem; **sędzią jest
+`mvn clean verify` u Maćka** — kod powstaje bez kompilacji u asystenta. Pliki
+istniejące na serwerze idą do repo przez J:, nie przez okno czatu. Nagłówki
+autorskie w plikach źródłowych — zachowywać; `AUTORSTWO.md` — nie wracać do tematu.
+Uczciwe przyznawanie się do błędów paczek i jawne zastrzeganie granic wiedzy.

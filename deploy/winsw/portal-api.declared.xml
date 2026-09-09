@@ -1,0 +1,46 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Portal DZI - wewnetrzny portal kafelkowy departamentu DZI.
+  Autor: Maciej Mysliwiec, 2026.
+  Autorskie prawa osobiste (prawo do autorstwa) niezbywalne - art. 16 pr. aut.
+  Nie usuwac tej informacji przy kopiowaniu ani modyfikacji pliku.
+
+  Konfiguracja WinSW dla portal-api (Faza 10, stan 2026-08).
+  Wariant declared: BEZ gMSA i BEZ sekretu LDAP - w tym trybie system nie ma
+  zadnego sekretu w tym pliku (haslo do bazy zyje w config\application-declared.yml).
+  Uwaga: profil MUSI byc 'declared'. Profil 'prod' aktywuje LDAP i usluga nie wstanie.
+-->
+<service>
+    <id>portal-api</id>
+    <name>Portal DZI - API</name>
+    <description>REST API portalu wewnetrznego DZI (Spring Boot, profil declared)</description>
+
+    <!-- Usluga nie dziedziczy zmiennych sesji - sciezka JDK podana wprost -->
+    <env name="JAVA_HOME" value="C:\Program Files\Eclipse Adoptium\jdk-21.0.11.10-hotspot"/>
+    <executable>%JAVA_HOME%\bin\java.exe</executable>
+    <arguments>-Xms256m -Xmx1024m -Dfile.encoding=UTF-8 -jar portal-api.jar --spring.profiles.active=declared</arguments>
+    <workingdirectory>D:\portal\api</workingdirectory>
+
+    <!-- Brak sekcji serviceaccount = usluga dziala jako LocalSystem.
+         Baza laczy sie kontem SQL (portal_app), wiec tozsamosc Windows nie jest
+         potrzebna. Do rozwazenia pozniej: konto o mniejszych uprawnieniach. -->
+
+    <startmode>Automatic</startmode>
+    <!-- Opoznienie startu: SQL Server musi wstac pierwszy -->
+    <delayedAutoStart>true</delayedAutoStart>
+
+    <!-- Padniety proces podnosi sie sam; przy uporczywej awarii - dluzsza przerwa -->
+    <onfailure action="restart" delay="10 sec"/>
+    <onfailure action="restart" delay="30 sec"/>
+    <resetfailure>1 hour</resetfailure>
+
+    <!-- Wiecej niz graceful shutdown aplikacji, zeby nie ucinac zadan w locie -->
+    <stoptimeout>30 sec</stoptimeout>
+
+    <!-- Log do plikow w D:\portal\api: portal-api.out.log (aplikacja),
+         portal-api.wrapper.log (usluga). Rotacja po 10 MB, 8 plikow wstecz. -->
+    <log mode="roll-by-size">
+        <sizeThreshold>10240</sizeThreshold>
+        <keepFiles>8</keepFiles>
+    </log>
+</service>

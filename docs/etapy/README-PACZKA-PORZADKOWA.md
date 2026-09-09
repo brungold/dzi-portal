@@ -1,3 +1,5 @@
+> Przeniesione z korzenia repo do `docs/etapy/` 2026-09-08 (historia paczki z 2026-08).
+
 # Paczka porządkowa — konsolidacja migracji + dokumentacja pod stan faktyczny
 
 Domyka tydzień 2026-08-06 → 11: schemat bazy w czytelnym układzie plik-per-tabela,

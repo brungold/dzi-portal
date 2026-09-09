@@ -1,12 +1,35 @@
-# WinSW — portal-api jako usługa Windows (Faza B)
+# WinSW — portal-api jako usługa Windows
 
-> **Wariant `declared` (ADR-0003):** usługa NIE używa gMSA i NIE dostaje zmiennej
-> środowiskowej z hasłem do LDAP — w tym trybie system nie ma żadnego sekretu.
-> W `<arguments>` profil to `declared` (nie `prod`; łączenie obu jest błędem, bo prod
-> aktywuje LDAP). Reszta — instalacja, `stoptimeout`, logi, start/stop — bez zmian.
+**Stan produkcyjny (Faza 10, wdrożona 2026-09-01):** usługa `portal-api` na WinSW 2.x,
+profil `declared`, LocalSystem, plik `deploy/winsw/portal-api.declared.xml` = kopia
+`D:\portal\api\portal-api.xml` z serwera (bez sekretów — hasło do bazy żyje
+w `config\application-declared.yml`, szablon: `deploy/declared/application-declared.yml.example`).
+Eksploatacja (restart, wdrożenie jara, logi, rollback): `docs/winsw-runbook.md`.
 
+Szablon `portal-api.xml.template` opisuje **wariant A** (gMSA + profil `prod` + sekret
+LDAP w env) i jest zachowany jako droga powrotna (ADR-0005). Nie używać go pod `declared`:
+profil `prod` aktywuje LDAP i usługa nie wstanie. Sekcje „gMSA", „mssql-jdbc_auth DLL"
+i „Windows-ROOT" poniżej dotyczą wyłącznie wariantu A.
 
-## Instalacja
+## Wariant declared — instalacja (wykonana; do odtworzenia serwera)
+
+1. `WinSW.NET461.exe` (WinSW 2.x, `D:\instalki`) → `D:\portal\api\portal-api.exe`.
+2. `deploy/winsw/portal-api.declared.xml` → `D:\portal\api\portal-api.xml`
+   (sprawdzić ścieżkę JDK w `<env name="JAVA_HOME">` — usługa nie dziedziczy zmiennych sesji).
+3. [SERWER #3] `& D:\portal\api\portal-api.exe install` → `Get-Service portal-api`
+   (Stopped / Automatic). Zatrzymać ewentualną ręczną instancję Javy (port 8080).
+4. `Start-Service portal-api` → `Invoke-RestMethod http://127.0.0.1:8080/actuator/health`
+   → `UP`.
+5. Testy: restart usługi, wylogowanie z RDP (usługa żyje), łagodne zamknięcie
+   (`Stop-Service` → w `portal-api.out.log` linie `Commencing graceful shutdown`
+   i `Graceful shutdown complete`), restart serwera (Faza 12).
+
+WinSW 2.x: komendy BEZ myślników (`version`, nie `--version`). Zegary: aplikacja
+czeka na żądania w toku 20 s (`spring.lifecycle.timeout-per-shutdown-phase`),
+WinSW zabija po 30 s (`stoptimeout`) — kolejność musi zostać.
+
+## Wariant A (gMSA, profil `prod`) — instalacja
+
 
 1. Pobierz `WinSW-x64.exe` (GitHub: winsw/winsw, release 2.x/3.x) i przenieś offline na serwer.
 2. Ułóż pliki:

@@ -1,13 +1,34 @@
-# Windows Auth przez moduł IIS — instrukcja (zaktualizowana po wdrożeniu 2026-08-11)
+# Windows Auth przez moduł IIS — instrukcja (moduł v3.0, stan 2026-09-08)
 
 Cel: IIS uwierzytelnia użytkownika (NTLM), a moduł `PortalAuthUserHeader` wpisuje
-jego login do nagłówka `X-Auth-User` PO etapie uwierzytelnienia — tam, gdzie
-reguła URL Rewrite nie sięga. Moduł to jeden plik DLL ładowany przez IIS jak
-URL Rewrite — żaden osobny program, zero instalatorów z internetu.
+PO etapie uwierzytelnienia — tam, gdzie reguła URL Rewrite nie sięga — dwa nagłówki:
+`X-Auth-User` (login z domeny) i `X-Auth-Dept` (departament z AD, od v3.0).
+Moduł to jeden plik DLL ładowany przez IIS jak URL Rewrite — żaden osobny program,
+zero instalatorów z internetu.
 
-**Stan: wdrożone i potwierdzone produkcyjnie 2026-08-11** (login z domeny
-w audycie, anty-podszycie odbite, portal bez okna deklaracji). Instrukcja
-zachowana na wypadek odtworzenia serwera; wzbogacona o lekcje z wdrożenia.
+**Stan: v2.0 wdrożone 2026-08-11 (login), v3.0 wdrożone 2026-08-12 (departament);
+źródło `deploy/iis/AuthUserHeaderModule.cs` = plik na serwerze (zweryfikowane
+2026-09-07).** Instrukcja zachowana na wypadek odtworzenia serwera.
+
+## Departament (v3.0, ADR-0008)
+
+- Źródło: **pierwsze `OU=` w `distinguishedName`** użytkownika
+  (`CN=...,OU=DZI,OU=Biuro,OU=Centrala,DC=zszik,DC=pl` → `dzi`), małymi literami —
+  spójnie z wartościami w `tile_permissions.ad_group`. NIE `extensionattribute12`
+  (ADR-0005 opisywał deklarację; produkcja bierze OU).
+- Zapytanie `DirectorySearcher` po `sAMAccountName` tożsamością puli aplikacji
+  (`ApplicationPoolIdentity` = konto maszyny w domenie; odczyt DN nie wymaga
+  żadnego konta ani hasła). Timeout 3 s.
+- Cache w pamięci procesu w3wp per login: sukces 15 min, porażka 60 s.
+  Recykling puli = pusty cache.
+- **Tryb awaryjny jest niemy:** AD nie odpowiada → nagłówek departamentu nie powstaje,
+  kafelki nadane na departament (`dzi`) znikają, login i kafelki imienne działają.
+  Moduł nie ma loggera, aplikacja nie odnotowuje braku nagłówka. Przy zgłoszeniu
+  „nie widzę kafelka, wczoraj widziałem" — to pierwszy podejrzany; sprawdzenie:
+  `curl.exe --ntlm -u : http://arimr-app.zszik.pl/api/whoami --noproxy "*"` ze stacji
+  (pole `groups` bez skrótu departamentu = moduł nie dostał DN).
+- Anty-spoof obu nagłówków: `X-Auth-User` nadpisywany, `X-Auth-Dept` od klienta
+  usuwany na `AuthenticateRequest`, wartości wstawiane na `PostAuthenticateRequest`.
 
 ## Trzy lekcje, które kosztowały dwa dni — czytaj przed czymkolwiek
 
@@ -44,14 +65,18 @@ zachowana na wypadek odtworzenia serwera; wzbogacona o lekcje z wdrożenia.
 3. **Kompilacja modułu** (kompilator jest w Windows; konsola #3, bo zapis idzie
    do katalogu witryny):
 
-       C:\Windows\Microsoft.NET\Framework64\v4.0.30319\csc.exe /nologo /codepage:65001 /target:library /reference:System.Web.dll /out:D:\portal\frontend\bin\PortalAuthUserModule.dll D:\portal\deploy\iis\AuthUserHeaderModule.cs
+       C:\Windows\Microsoft.NET\Framework64\v4.0.30319\csc.exe /nologo /codepage:65001 /target:library /reference:System.Web.dll /reference:System.DirectoryServices.dll /out:D:\portal\frontend\bin\PortalAuthUserModule.dll <ścieżka>\AuthUserHeaderModule.cs
 
+   **Od v3.0 obowiązkowe `/reference:System.DirectoryServices.dll`** — bez niego
+   kompilacja kończy się błędem CS0234 (`DirectoryServices` nie istnieje w `System`).
+   `<ścieżka>` = kopia repo na serwerze (np. `D:\portal\dzi-portal-<data>\deploy\iis`).
    Sukces = brak komunikatu. „File in use" → `appcmd recycle apppool "portal"`
    i ponów. Weryfikacja: `dir D:\portal\frontend\bin` (świeża data DLL).
-4. **web.config** (`D:\portal\frontend\web.config`, wzorzec: `deploy/iis/web.config`):
-   sekcja `<modules>` z wpisem modułu (bez `preCondition`!) jako dziecko
-   `<system.webServer>`; linia `HTTP_X_AUTH_USER` w regule rewrite zakomentowana;
-   `HTTP_X_FORWARDED_FOR` zostaje. **Po zapisie: weryfikacja z lekcji nr 2.**
+4. **web.config** (`D:\portal\frontend\web.config` = `deploy/iis/web.config` w repo,
+   stan serwera): sekcja `<modules>` z wpisem modułu (bez `preCondition`!) jako
+   dziecko `<system.webServer>`; reguły `portal-api-proxy` (z `HTTP_X_FORWARDED_FOR`)
+   i `portal-apps-proxy` (strażnik, ADR-0007). **Po zapisie: weryfikacja z lekcji
+   nr 2** oraz `appcmd list config "portal" -section:system.webServer/rewrite/rules`.
 5. **Frontend**: `frontend/js/declared-identity.js` w wersji z sondą whoami
    (repo). W przeglądarce Ctrl+F5.
 6. **Testy — wyłącznie ze stacji roboczej** (loopback check blokuje testy
@@ -59,8 +84,9 @@ zachowana na wypadek odtworzenia serwera; wzbogacona o lekcje z wdrożenia.
 
        curl.exe --ntlm -u : "http://arimr-app.zszik.pl/api/whoami" --noproxy "*" -i
 
-   → 200 i login testującego. Anty-podszycie: to samo z
-   `-H "X-Auth-User: abcde"` → nadal prawdziwy login. Przeglądarka → portal
+   → 200, login testującego i w `groups` skrót departamentu (np. `dzi`).
+   Anty-podszycie: to samo z `-H "X-Auth-User: abcde" -H "X-Auth-Dept: dag"`
+   → nadal prawdziwy login i prawdziwy departament. Przeglądarka → portal
    bez okna deklaracji (systemowe okno hasła = brak wpisu strefy Intranet
    lokalny na stacji — inetcpl.cpl, docelowo GPO). Audyt:
    `SELECT TOP 10 * FROM v_audit_log_pl ORDER BY id DESC` → wpisy SUCCESS
@@ -82,3 +108,6 @@ Pula może zostać na v4.0; DLL w bin jest martwa bez wpisu.
   `appcmd unlock config -section:system.webServer/modules`.
 - Moduł omija /api, statyka OK → wpis ma `preCondition="managedHandler"` — usuń atrybut.
 - Testy z serwera zwracają 401.1 HTML → loopback check, nie błąd konfiguracji.
+- Login jest, departamentu brak (`groups` bez skrótu) → AD nie odpowiedziało w 3 s
+  albo DN bez `OU=`; po 60 s moduł próbuje ponownie. Recykling puli czyści cache.
+- `CS0234 ... DirectoryServices` przy kompilacji → brak `/reference:System.DirectoryServices.dll`.

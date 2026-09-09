@@ -1,48 +1,66 @@
 /*
- * Portal DZI — wewnętrzny portal kafelkowy departamentu DZI.
+ * Portal DZI - wewnętrzny portal kafelkowy departamentu DZI.
  * Autor: Maciej Myśliwiec, 2026.
  *
  * Autorskie prawa osobiste (w tym prawo do oznaczenia utworu nazwiskiem autora)
- * są niezbywalne — art. 16 ustawy z 4.02.1994 r. o prawie autorskim i prawach
+ * są niezbywalne - art. 16 ustawy z 4.02.1994 r. o prawie autorskim i prawach
  * pokrewnych. Zakres praw majątkowych regulują odrębne ustalenia z pracodawcą.
  * Nie usuwać tej informacji przy kopiowaniu ani modyfikacji pliku.
  */
 using System;
+using System.Collections.Concurrent;
+using System.DirectoryServices;
 using System.Security.Principal;
 using System.Web;
 
 namespace PortalAuthUserModule
 {
     /// <summary>
-    /// Modul IIS (potok zintegrowany): po uwierzytelnieniu wpisuje login zalogowanego
-    /// uzytkownika do naglowka X-Auth-User i usuwa X-Auth-Dept przyslany przez klienta.
-    /// Dzieki temu aplikacja za ARR dostaje tozsamosc USTALONA PRZEZ IIS, nie deklarowana.
+    /// Modul IIS (potok zintegrowany). Po uwierzytelnieniu wpisuje do naglowkow
+    /// tozsamosc ustalona PRZEZ SERWER, nadpisujac cokolwiek przyslal klient:
+    ///  - X-Auth-User: uwierzytelniony login (Windows Authentication / NTLM),
+    ///  - X-Auth-Dept: departament odczytany z Active Directory.
     ///
-    /// Wersja 2.0 (2026-08-11) — pierwsza produkcyjna, po potwierdzonym wdrozeniu.
-    /// Historia (dla nastepnego czytelnika):
-    ///  - reguly URL Rewrite NIE nadaja sie do tego zadania: dzialaja w BeginRequest,
-    ///    przed uwierzytelnieniem, wiec {LOGON_USER} jest tam zawsze pusty (2026-08-06),
-    ///  - modul MUSI byc zarejestrowany w <modules> w web.config witryny; brak wpisu
-    ///    oznacza, ze IIS w ogole go nie laduje i login pozostaje pusty (2026-08-11),
-    ///  - uwierzytelnianie w trybie jadra (useKernelMode="true") ma zostac WLACZONE:
-    ///    jego wylaczenie zabija NTLM na tym serwerze (0x80090305 dla kazdego klienta).
+    /// Wersja 3.0 (2026-08-12) - departament z OU.
+    /// Podstawa decyzji: cztery probki distinguishedName kont z roznych komorek
+    /// organizacyjnych - u wszystkich departament jest PIERWSZYM OU po CN:
+    /// CN=...,OU=DZI,OU=Biuro,OU=Centrala,DC=zszik,DC=pl. Modul bierze pierwsze
+    /// OU ze sciezki i normalizuje do malych liter ('dzi') - spojnie z konwencja
+    /// tile_permissions.ad_group.
     ///
-    /// Wlasnosci bezpieczenstwa:
-    ///  - Set() nadpisuje wartosc przyslana przez klienta — naglowkiem nie da sie podszyc
-    ///    (zweryfikowane: zadanie z "X-Auth-User: abcde" zwrocilo login prawdziwego uzytkownika),
-    ///  - X-Auth-Dept jest usuwany — cala tozsamosc pochodzi z IIS, nic od klienta,
-    ///  - przy braku uwierzytelnienia naglowek dostaje pusta wartosc, ktora aplikacja
-    ///    traktuje jak brak tozsamosci i odpowiada czystym 401 (poprawka D1 z paczki A).
+    /// Mechanika departamentu:
+    ///  - zapytanie DirectorySearcher po sAMAccountName (konto procesu puli;
+    ///    odczyt distinguishedName to atrybut publiczny w domenie),
+    ///  - cache w pamieci per login: sukces 15 minut, porazka 60 sekund
+    ///    (zeby awaria AD nie zasypywala kontrolera ponownymi probami),
+    ///  - tryb awaryjny: AD nie odpowiada / brak wyniku => naglowek departamentu
+    ///    NIE powstaje - kafelki departamentowe chwilowo znikaja, login i reszta
+    ///    portalu dzialaja normalnie,
+    ///  - anty-spoof: X-Auth-Dept od klienta jest ZAWSZE usuwany na pierwszym
+    ///    zaczepie; wartosc moze pochodzic wylacznie z AD.
+    ///
+    /// Ustalenia twarde z wdrozenia 2026-08-10/11 (nie lamac):
+    ///  - kernel-mode authentication zostaje WLACZONE (useKernelMode="true"),
+    ///  - modul dziala tylko z wpisem w <modules> web.config witryny,
+    ///  - kompilacja wymaga /reference:System.DirectoryServices.dll (od v3.0).
     /// </summary>
     public class AuthUserHeaderModule : IHttpModule
     {
         private const string LoginHeader = "X-Auth-User";
         private const string DeptHeader = "X-Auth-Dept";
+        private static readonly TimeSpan CacheSukces = TimeSpan.FromMinutes(15);
+        private static readonly TimeSpan CachePorazka = TimeSpan.FromSeconds(60);
+        private static readonly ConcurrentDictionary<string, WpisCache> Cache =
+            new ConcurrentDictionary<string, WpisCache>(StringComparer.OrdinalIgnoreCase);
+
+        private sealed class WpisCache
+        {
+            public string Departament;
+            public DateTime WygasaUtc;
+        }
 
         public void Init(HttpApplication application)
         {
-            // Dwa zaczepy: pierwszy ustala stan wyjsciowy i odcina naglowki klienta,
-            // drugi uzupelnia login, jesli tozsamosc stala sie widoczna dopiero pozniej.
             application.AuthenticateRequest += OnAuthenticateRequest;
             application.PostAuthenticateRequest += OnPostAuthenticateRequest;
         }
@@ -50,7 +68,8 @@ namespace PortalAuthUserModule
         private static void OnAuthenticateRequest(object sender, EventArgs e)
         {
             HttpContext context = ((HttpApplication)sender).Context;
-            context.Request.Headers.Set(LoginHeader, ResolveLogin(context)); // anty-spoof: zawsze nadpisz
+            // Anty-spoof: zawsze nadpisz login i wytnij departament klienta.
+            context.Request.Headers.Set(LoginHeader, ResolveLogin(context));
             context.Request.Headers.Remove(DeptHeader);
         }
 
@@ -58,16 +77,21 @@ namespace PortalAuthUserModule
         {
             HttpContext context = ((HttpApplication)sender).Context;
             string login = ResolveLogin(context);
-            if (login.Length > 0)
+            if (login.Length == 0)
             {
-                context.Request.Headers.Set(LoginHeader, login); // tylko ulepsza, nigdy nie czysci
+                return; // brak tozsamosci - aplikacja odpowie czystym 401
+            }
+            context.Request.Headers.Set(LoginHeader, login);
+
+            string departament = ResolveDepartament(login);
+            if (departament.Length > 0)
+            {
+                context.Request.Headers.Set(DeptHeader, departament);
             }
         }
 
-        /// <summary>
-        /// Tozsamosc w kolejnosci wiarygodnosci zrodel: natywny token IIS, zmienne
-        /// serwerowe, na koncu zarzadzany context.User. Brak tozsamosci => pusty string.
-        /// </summary>
+        // ----------------------------- LOGIN (jak w wersji 2.0) -----------------------------
+
         private static string ResolveLogin(HttpContext context)
         {
             string login = Odczytaj(delegate
@@ -90,7 +114,6 @@ namespace PortalAuthUserModule
             });
         }
 
-        /// <summary>Odczyt zrodla odporny na wyjatki i puste wartosci — zwraca "" zamiast null.</summary>
         private static string Odczytaj(Func<string> zrodlo)
         {
             try
@@ -102,6 +125,108 @@ namespace PortalAuthUserModule
             {
                 return "";
             }
+        }
+
+        // ----------------------------- DEPARTAMENT (nowosc 3.0) -----------------------------
+
+        /// <summary>Departament dla loginu (format DOMENA\login lub sam login), z cache.</summary>
+        private static string ResolveDepartament(string loginZDomena)
+        {
+            try
+            {
+                string sam = BezDomeny(loginZDomena);
+                if (!LoginBezpieczny(sam))
+                {
+                    return ""; // nietypowe znaki - nie budujemy z tego filtra LDAP
+                }
+
+                WpisCache wpis;
+                if (Cache.TryGetValue(sam, out wpis) && wpis.WygasaUtc > DateTime.UtcNow)
+                {
+                    return wpis.Departament;
+                }
+
+                string departament = "";
+                bool sukces = false;
+                try
+                {
+                    departament = PierwszeOu(SzukajDnWAd(sam));
+                    sukces = true;
+                }
+                catch
+                {
+                    // AD niedostepne - tryb awaryjny, krotki cache porazki ponizej.
+                }
+
+                WpisCache nowy = new WpisCache();
+                nowy.Departament = departament;
+                nowy.WygasaUtc = DateTime.UtcNow + (sukces ? CacheSukces : CachePorazka);
+                Cache[sam] = nowy;
+
+                return departament;
+            }
+            catch
+            {
+                return ""; // zadna awaria departamentu nie moze zepsuc zadania
+            }
+        }
+
+        private static string BezDomeny(string login)
+        {
+            int backslash = login.LastIndexOf('\\');
+            string sam = backslash >= 0 ? login.Substring(backslash + 1) : login;
+            return sam.Trim().ToLowerInvariant();
+        }
+
+        /// <summary>Tylko male litery, cyfry, kropka, myslnik, podkreslenie - bezpieczne w filtrze LDAP.</summary>
+        private static bool LoginBezpieczny(string sam)
+        {
+            if (sam.Length == 0 || sam.Length > 64) return false;
+            foreach (char c in sam)
+            {
+                bool ok = (c >= 'a' && c <= 'z') || (c >= '0' && c <= '9')
+                    || c == '.' || c == '-' || c == '_';
+                if (!ok) return false;
+            }
+            return true;
+        }
+
+        /// <summary>distinguishedName uzytkownika z domeny procesu (konto puli).</summary>
+        private static string SzukajDnWAd(string sam)
+        {
+            using (DirectoryEntry katalog = new DirectoryEntry())
+            using (DirectorySearcher szukacz = new DirectorySearcher(katalog))
+            {
+                szukacz.Filter = "(&(objectCategory=person)(objectClass=user)(sAMAccountName=" + sam + "))";
+                szukacz.PropertiesToLoad.Add("distinguishedName");
+                szukacz.ClientTimeout = TimeSpan.FromSeconds(3);
+                SearchResult wynik = szukacz.FindOne();
+                if (wynik == null || wynik.Properties["distinguishedName"].Count == 0)
+                {
+                    return "";
+                }
+                return wynik.Properties["distinguishedName"][0] as string;
+            }
+        }
+
+        /// <summary>
+        /// Pierwsze OU ze sciezki DN, malymi literami. Dla
+        /// CN=Jan Kowalski,OU=DZI,OU=Biuro,OU=Centrala,DC=zszik,DC=pl -> "dzi".
+        /// Odporny na przecinki w CN (fragmenty po rozcieciu nie zaczynaja sie od OU=).
+        /// </summary>
+        private static string PierwszeOu(string dn)
+        {
+            if (string.IsNullOrEmpty(dn)) return "";
+            string[] czesci = dn.Split(',');
+            foreach (string czesc in czesci)
+            {
+                string t = czesc.Trim();
+                if (t.StartsWith("OU=", StringComparison.OrdinalIgnoreCase))
+                {
+                    return t.Substring(3).Trim().ToLowerInvariant();
+                }
+            }
+            return "";
         }
 
         public void Dispose()

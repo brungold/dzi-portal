@@ -1,3 +1,5 @@
+> Przeniesione z korzenia repo do `docs/etapy/` 2026-09-08 (historia paczki z 2026-08-13).
+
 # Paczka: strażnik /apps (ADR-0007) — RBAC i audyt dla plików modułów
 
 Zamyka ryzyko nazwane przy wdrożeniu ReD: pliki modułów (w tym CSV z danymi
@@ -75,7 +77,7 @@ AUTORSTWO.md: dopisać wiersz — „moduł ReD + powłoka portal-dzi (assets) �
 | 7 | audyt po teście 1 | wpisy APP_OPEN i APP_DATA; **brak** wpisów o css/js/logo |
 | 8 | strona główna, `/api/tiles`, `/api/whoami`, moduł Raport licencji | bez zmian |
 
-Test 3–4 najlepiej kontem Pawła Gawrychowskiego (spoza listy) — to dosłownie scenariusz
+Test 3–4 najlepiej kontem testera spoza listy uprawnionych — to dosłownie scenariusz
 „X przesłał link Y-owi". Kontrola audytu: [SERWER #2]
 `sqlcmd -S localhost -d portal -E -Q "SELECT TOP 15 ts_pl, username, path, status, http_status FROM v_audit_log_pl ORDER BY id DESC"`
 
