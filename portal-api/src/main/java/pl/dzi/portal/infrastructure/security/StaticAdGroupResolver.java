@@ -16,6 +16,10 @@ import java.util.Set;
 import java.util.stream.Collectors;
 
 /**
+ * WARIANT A (profil {@code prod}: grupy AD przez LDAPS, Kerberos na IIS). NIEUŻYWANY
+ * w produkcji od 2026-08-11 — produkcja to profil {@code declared} z nagłówkami wpisywanymi
+ * przez moduł IIS (ADR-0006/0008). Zachowany jako droga powrotna (ADR-0005). Nie rozwijać.
+ *
  * Resolver grup dla środowisk bez AD (dev, testy): mapa login -> grupy z konfiguracji.
  * Loginy porównywane case-insensitive, tak jak robi to AD.
  */

@@ -20,9 +20,11 @@ import java.io.IOException;
 import java.util.Set;
 
 /**
- * Ochrona CSRF dopasowana do SSO Kerberos: przeglądarka uwierzytelnia się "ambientowo"
- * (bez cookies), więc klasyczny token CSRF nie ma nośnika, a strona z internetu mogłaby
- * wywołać w tle żądanie mutujące — przeglądarka w strefie Intranet dołoży bilet Kerberos.
+ * Ochrona CSRF dopasowana do SSO przez Windows Authentication (NTLM, ADR-0006): przeglądarka
+ * uwierzytelnia się "ambientowo" (bez cookies), więc klasyczny token CSRF nie ma nośnika,
+ * a obca strona w intranecie mogłaby wywołać w tle żądanie mutujące — przeglądarka w strefie
+ * Intranet dołoży poświadczenia sama. Dotyczy każdego przyszłego endpointu zapisu
+ * (np. panel administracyjny, Faza B).
  *
  * Współczesne przeglądarki wysyłają Sec-Fetch-Site; jawne "cross-site" dla metod mutujących
  * blokujemy. Brak nagłówka (curl, testy, starzy klienci) przepuszczamy — to defense-in-depth,

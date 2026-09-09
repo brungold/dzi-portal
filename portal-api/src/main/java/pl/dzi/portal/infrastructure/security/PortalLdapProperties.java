@@ -13,6 +13,10 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.boot.context.properties.bind.DefaultValue;
 
 /**
+ * WARIANT A (profil {@code prod}: grupy AD przez LDAPS, Kerberos na IIS). NIEUŻYWANY
+ * w produkcji od 2026-08-11 — produkcja to profil {@code declared} z nagłówkami wpisywanymi
+ * przez moduł IIS (ADR-0006/0008). Zachowany jako droga powrotna (ADR-0005). Nie rozwijać.
+ *
  * @param url         ldaps://... (AD wymusza podpisywanie; plain 389 + simple bind zostanie odrzucone)
  * @param base        baza wyszukiwania, np. DC=dzi,DC=pl
  * @param userDn      dedykowane konto read-only do LDAP — jedyny sekret systemu

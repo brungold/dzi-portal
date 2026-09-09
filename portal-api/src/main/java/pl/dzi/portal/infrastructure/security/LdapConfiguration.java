@@ -20,6 +20,10 @@ import java.time.Clock;
 import java.util.Map;
 
 /**
+ * WARIANT A (profil {@code prod}: grupy AD przez LDAPS, Kerberos na IIS). NIEUŻYWANY
+ * w produkcji od 2026-08-11 — produkcja to profil {@code declared} z nagłówkami wpisywanymi
+ * przez moduł IIS (ADR-0006/0008). Zachowany jako droga powrotna (ADR-0005). Nie rozwijać.
+ *
  * Produkcyjne źródło grup: LDAPS do kontrolera domeny + cache TTL.
  *
  * Zmiana w Etapie 1 (pierwszy kontakt z prawdziwym DC): twarde timeouty połączenia

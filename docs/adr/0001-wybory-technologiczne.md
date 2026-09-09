@@ -2,6 +2,11 @@
 
 Status: zaakceptowany · Data: 2026-07-07 · Dotyczy: portal-api, portal-worker, portal-common
 
+> **Aktualizacja 2026-09:** decyzje 6 i 7 (Kerberos przez IIS → nagłówek, sekret LDAP)
+> zastąpione przez ADR-0006/0008: tożsamość i departament wpisuje moduł IIS po Windows
+> Authentication (NTLM), aplikacja nie ma żadnego sekretu poza hasłem do bazy.
+> Decyzje 1–5 i 8 obowiązują.
+
 ## Kontekst
 
 Portal wewnętrzny na Windows Server 2025 (DZI-APP01V), za IIS (Kerberos, wariant A: nagłówek

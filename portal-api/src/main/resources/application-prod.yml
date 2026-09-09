@@ -1,3 +1,6 @@
+# WARIANT A (Kerberos na IIS + grupy AD przez LDAPS + gMSA) — NIEUŻYWANY w produkcji.
+# Produkcja od 2026-08-11: profil `declared` (ADR-0006/0008). Zachowany jako droga powrotna
+# (ADR-0005). NIE łączyć z `declared` — aktywuje LDAP i wymaga sekretu, którego system nie ma.
 # ======================================================================
 # Portal DZI — wewnętrzny portal kafelkowy departamentu DZI.
 # Autor: Maciej Myśliwiec, 2026.

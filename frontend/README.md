@@ -1,32 +1,20 @@
-# Frontend (statyczny)
+# frontend/ — witryna IIS (`D:\portal\frontend`)
 
-Serwowany przez IIS w prod, przez Springa w dev (profil `dev`, katalog `../frontend`).
+Stan = serwer (listing 2026-09-09). Co jest czym:
 
-## Integracja pliku kafelkowego (index.html od autora frontendu)
+| Plik | Rola |
+|---|---|
+| `index.html` + `js/portal-app.js` + `css/portal.css` | strona główna: kafelki renderowane z `/api/tiles` (RBAC serwerowy), identyfikacja ARiMR, CSP bez inline JS |
+| `js/declared-identity.js` | nakładka na `fetch`: sonda `/api/whoami`; w produkcji przezroczysta (moduł IIS daje 200), okno deklaracji tylko bez IIS (dev/awaryjnie) |
+| `assets/css/portal-dzi.css`, `assets/js/portal-dzi.js` | **powłoka modułów kafelków** (`D:\portal\apps\<code>\index.html` ładuje je przez `../../assets/...`); zawiera tabele, stronicowanie, plakietki, karty KPI, panel filtrów — gotowe klocki dla nowych modułów |
+| `assets/logo.png` | logotyp (na serwerze wersja 112 KB) |
+| `dataset.html` + `lib/tabulator/` | widok zbiorów danych (REPORT) — gotowe, bez kafelka |
+| `web.config` | konfiguracja IIS — źródło prawdy w `deploy/iis/web.config` |
+| `bin/PortalAuthUserModule.dll` | tylko na serwerze; kompilowany z `deploy/iis/AuthUserHeaderModule.cs` |
 
-Dokładnie dwie zmiany w jego pliku:
+Usunięte 2026-09-09: `index.example.html`, `portal-bootstrap.js` — stara integracja
+`data-tile-id` z zaszytymi kafelkami, zastąpiona renderem z `/api/tiles` (commit 34/37).
+Na serwerze te dwa pliki też można skasować.
 
-1. Każdy kafelek dostaje `data-tile-id="<code z tabeli tiles>"`.
-2. Przed `</body>`: `<script src="portal-bootstrap.js" defer></script>`.
-
-Wszystko inne (pokazywanie/ukrywanie po uprawnieniach, akcje kliknięć, pasek statusu,
-komunikaty błędów) robi `portal-bootstrap.js`. Kafelki bez uprawnień są ukrywane —
-to warstwa UX; twarda kontrola (403 + audyt) i tak działa w backendzie.
-
-## Checklist przeglądu pliku przed integracją
-
-- [ ] zero odwołań do CDN (fonty, ikony, skrypty) — wszystko lokalnie w `lib/`,
-- [ ] usunięte atrapy `onclick`/`href="#"` generowane przez LLM (bootstrap sam wiąże kliknięcia),
-- [ ] kody w `data-tile-id` uzgodnione z tabelą `tiles` (kolumna `code`),
-- [ ] plik działa otwarty przez Springa: `http://localhost:8080/index.html`.
-
-## Szybki test bez pliku kolegi
-
-`index.example.html` odwzorowuje seed dev: profil `dev`, przeglądarka →
-`http://localhost:8080/index.example.html` (dev-fallback loguje jako `tester`).
-Zmiana persony: w `application-dev.yml` ustaw `dev-fallback-user: viewer` i odśwież —
-zniknie panel administratora, a Restart ETL zgaśnie (brak EXECUTE).
-
----
-
-*Autor: Maciej Myśliwiec, 2026.*
+Dev: Spring serwuje ten katalog sam (`spring.web.resources.static-locations` w profilu `dev`).
+Zasada zero-CDN: wszystko lokalnie.

@@ -4,6 +4,8 @@
 # Autorskie prawa osobiste (prawo do autorstwa) niezbywalne — art. 16 pr. aut.
 # Nie usuwać tej informacji przy kopiowaniu ani modyfikacji pliku.
 # ======================================================================
+# STAN 2026-09: klient trybu DEKLAROWANEGO — dev/awaryjnie. W produkcji nagłówki wpisuje moduł
+# IIS po NTLM (ADR-0006), a departament pochodzi z OU, nie z extensionattribute12 (ADR-0008).
 <#
 .SYNOPSIS
   Klient portalu w trybie deklarowanym (ADR-0005): login i skrót departamentu

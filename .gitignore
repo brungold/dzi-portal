@@ -17,18 +17,22 @@ Thumbs.db
 *.log
 application-local.yml
 
-# Dane modułów (repo jest PUBLICZNE): do repo idzie wyłącznie kod modułu.
-# Pliki danych jadą przez J: prosto na serwer (apps/README.md).
-apps/**/*.csv
-apps/**/*.xlsx
-apps/**/*.xls
-apps/*/data/
-apps/*/dane*/
-
 # Konfiguracja serwerowa z hasłem do bazy (szablon: deploy/declared/application-declared.yml.example)
 config/application-declared.yml
 
-# Wersje robocze — od wersji jest git, nie dysk serwera
+# Moduły kafelków żyją WYŁĄCZNIE na serwerze (D:\portal\apps) — decyzja 2026-09-08.
+# W repo zostaje tylko apps/README.md (procedura, układ katalogów, konwencje).
+apps/*/
+!apps/README.md
+
+# Siatka na dane, gdyby decyzja kiedyś się zmieniła (repo jest publiczne)
+apps/**/*.csv
+apps/**/*.xlsx
+apps/**/*.xls
+apps/**/*.json
+!apps/**/*.przyklad.json
+apps/*/data/
+apps/*/dane*/
 *_v[0-9]*.js
 *_v[0-9]*.css
 *_v[0-9]*.html

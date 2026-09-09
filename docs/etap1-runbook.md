@@ -1,5 +1,9 @@
 # Etap 1 — runbook: stalowa nitka security na serwerze DZI-APP01V
 
+> **DOKUMENT HISTORYCZNY — wariant A, nieużywany w produkcji.** Produkcja (od 2026-08-11):
+> `deploy/iis/INSTRUKCJA-MODUL-WINDOWS-AUTH.md` + `deploy/iis/web.config` (IIS, moduł v3.0),
+> `docs/winsw-runbook.md` (usługa), `deploy/sql/prod-grants.sql` (baza).
+>
 > **Wariant A (integracja z AD).** Ten runbook opisuje wdrożenie z Kerberosem, SPN,
 > gMSA i LDAPS. Jeśli wdrażasz **profil `declared`** (ADR-0003), obowiązuje
 > `docs/deklaracja-runbook.md`, a stąd **nie stosuje się**: SPN/`setspn`, Windows

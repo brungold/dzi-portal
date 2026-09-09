@@ -57,7 +57,8 @@ public class AccessFacade {
                 .anyMatch(permission -> permission.permissionLevel().covers(required));
     }
 
-    /** Grupy AD porównujemy case-insensitive — tak jak robi to samo AD. */
+    /** Wartości ad_group (login / departament / "wszyscy"; w wariancie A grupy AD) porównujemy
+     *  case-insensitive — tak jak robi to samo AD. */
     static Collection<String> lowercased(Collection<String> groups) {
         return groups.stream().map(group -> group.toLowerCase(Locale.ROOT)).toList();
     }

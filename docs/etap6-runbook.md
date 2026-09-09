@@ -1,5 +1,9 @@
 # Etap 6 — runbook: odświeżanie, hardening, deploy z rollbackiem
 
+> **Stan 2026-09:** z tego runbooka w produkcji obowiązują wyłącznie zasady ogólne
+> (NTFS na skryptach, retencja, test rollbacku). Usługa: `docs/winsw-runbook.md`;
+> konta bazy: `deploy/sql/prod-grants.sql` (SQL auth `portal_app`, nie gMSA).
+>
 > **Uwaga do wariantu `declared`:** kroki dotyczące gMSA nie mają zastosowania
 > (usługa działa na koncie bez dostępu do katalogu w runtime — patrz ADR-0003).
 > Krok weryfikacyjny „kafelek demo wykonuje zadanie" wykonuj **prawdziwym** kafelkiem

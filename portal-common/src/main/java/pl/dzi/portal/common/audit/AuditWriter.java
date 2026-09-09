@@ -10,7 +10,6 @@
 package pl.dzi.portal.common.audit;
 
 import lombok.RequiredArgsConstructor;
-import org.springframework.context.annotation.Profile;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Component;
 
@@ -28,7 +27,6 @@ import java.time.ZoneOffset;
  * test integracyjny na prawdziwym SQL Server (AuditPersistenceIT).
  */
 @Component
-@Profile("!demo")   // zachowane celowo: w tym wariancie (bez klas demo) aktywacja profilu demo = błąd startu (ADR-0004)
 @RequiredArgsConstructor
 public class AuditWriter {
 

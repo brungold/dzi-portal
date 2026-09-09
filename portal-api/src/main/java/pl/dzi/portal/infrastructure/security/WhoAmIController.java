@@ -22,7 +22,8 @@ import java.util.Set;
 /**
  * Endpoint diagnostyczny stalowej nitki (Etap 1) — zostaje na stałe.
  * Odpowiada na pytanie "za kogo ma mnie portal i jakie widzi grupy",
- * czyli 90% debugowania Kerberos/IIS/LDAP jednym GET-em.
+ * czyli 90% debugowania IIS / modułu PortalAuthUserHeader / nagłówków jednym GET-em
+ * (brak skrótu departamentu w groups = moduł nie dostał DN z AD, ADR-0008).
  * Od Etapu 2 jest też pierwszym konsumentem @Audited — w audit_log widać action=WHOAMI.
  */
 @RestController

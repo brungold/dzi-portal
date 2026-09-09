@@ -18,9 +18,10 @@ portal-api (usługa WinSW, LocalSystem, profil declared)
 SQL Server Express 2022 (baza portal, konto SQL portal_app; audit_log append-only przez DENY)
 ```
 
-Cztery kafelki w produkcji (wszystkie typu LINK → moduł za strażnikiem): `apps/README.md`.
-Kod SCRIPT/REPORT (worker, zadania, zbiory danych, Tabulator) jest gotowy i nieużywany —
-żaden kafelek go nie uruchamia.
+Cztery kafelki w produkcji (wszystkie typu LINK → moduł za strażnikiem). **Kod modułów
+kafelków żyje wyłącznie na serwerze (`D:\portal\apps`) — decyzja 2026-09-08; repo trzyma
+procedurę i konwencje (`apps/README.md`), nie moduły.** Kod SCRIPT/REPORT (worker, zadania,
+zbiory danych, Tabulator) jest gotowy i nieużywany — żaden kafelek go nie uruchamia.
 
 **Dwa warianty tożsamości — ta sama logika, ten sam RBAC, ten sam audyt.**
 Różnią się wyłącznie tym, skąd bierze się login. Dalej łańcuch jest identyczny:
@@ -56,6 +57,20 @@ Deklaracja z przeglądarki (`declared-identity.js`, `docs/deklaracja-runbook.md`
 dev/awaryjny. Kompensacje z ADR-0003 (limiter, blokada wielu loginów z adresu) działają
 nadal; przy tożsamości z NTLM blokada daje głównie fałszywe alarmy — próg konfigurowalny
 (`deploy/declared/application-declared.yml.example`).
+
+## Mapa profili — co żyje w `declared`, a co czeka
+
+| Warstwa | Produkcja (`declared`) | Wariant A (`prod`, nieużywany) | Tylko dev |
+|---|---|---|---|
+| tożsamość | `DeclaredSecurityConfiguration`, `DeclaredHeaderAuthenticationFilter`, `DeclaredRateLimiter`, `DeclaredIdentityProperties` | `SecurityConfig` (łańcuchy /api, /apps), `LoopbackHeaderAuthenticationFilter`, `LdapConfiguration`, `LdapAdGroupResolver`, `CachingAdGroupResolver`, `PortalLdapProperties` | `DevSecurityConfiguration` (`@Profile("!prod")` — żyje też pod declared, patrz pkt 6 niżej), `StaticAdGroupResolver` |
+| uprawnienia | `AccessFacade`, `TilesFacade`, `tile_permissions` (login / departament / `wszyscy`) | to samo, z grupami AD w `ad_group` | seed `db/migration-dev` (nazwy grup AD) |
+| moduły | `apps/*` — strażnik (`AppsController` i spółka, ADR-0007) | — | — |
+| audyt | `AuditFilter`, `AuditWriter`, `AppsAuditPolicy`, `audit_log` (DENY) | to samo | to samo |
+| gotowe, bez kafelka | `tasks/*`, `datasets/*`, `portal-worker`, Tabulator, `scripts/demo` | | |
+| konfiguracja | `application.yml` + `application-declared.yml` (+ `config\application-declared.yml` na serwerze z hasłem) | `application-prod.yml`, `deploy/winsw/*.template`, `deploy/iis/setup-iis.ps1`, `verify-etap1.ps1`, `docs/etap1/6-runbook.md` | `application-dev.yml` |
+
+Wariant A jest zachowany jako droga powrotna (ADR-0005) i oznaczony w kodzie komentarzem
+„WARIANT A … nieużywany". Nie rozwijać; usunięcie = osobna decyzja z ADR.
 
 ## Co portal robi
 
@@ -173,9 +188,9 @@ Narzędzia: `deploy/deploy-api.ps1` (wdrożenie jara na usługę), retencja w
    bez zasobów, ale to konfiguracja dev w produkcji. Zmiana na `@Profile("dev")` wymaga
    jednoczesnego ogrodzenia łańcuchów wariantu A w `SecurityConfig` i przebiegu testów —
    zaplanowana, nie zrobiona.
-7. **Repo = serwer** od paczki 2026-09-08 z wyjątkiem: `frontend/` (powłoka na serwerze
-   vs `index.html` z commitu 37 — do porównania) i agregatów ReD (`red-dashboard.js`,
-   `data/`, skrypt generujący) — otwarte.
+7. **Repo = serwer** (zweryfikowane listingiem 2026-09-09) dla wszystkiego poza katalogami
+   modułów kafelków, które celowo są tylko na serwerze. `frontend/` na serwerze = repo
+   (strona główna to `index.html` z commitu 37; `assets/portal-dzi.*` to powłoka modułów).
 
 ## Stan po commitach 33–41
 
@@ -213,7 +228,11 @@ Narzędzia: `deploy/deploy-api.ps1` (wdrożenie jara na usługę), retencja w
 - **strażnik (2026-08-13, `2bcdfcc`)** — ADR-0007: `AppsController` i spółka, `apps/`.
 - **repo = serwer (2026-09-08)** — moduł v3.0 + ADR-0008, `web.config` = serwer,
   `portal-api.declared.xml`, `application-declared.yml.example`, `prod-grants.sql`
-  pod realne konta, `.gitignore` na dane modułów, trzy moduły dogonione, WinSW runbook.
+  pod realne konta, `.gitignore` na dane modułów, WinSW runbook.
+- **porządkowa (2026-09-09)** — komentarze pod stan faktyczny (NTLM + moduł, OU zamiast
+  `extensionattribute12`), etykiety „wariant A" na kodzie LDAP/gMSA i runbookach, mapa
+  profili, usunięte `index.example.html`/`portal-bootstrap.js`, `AuditWriter` bez
+  `@Profile("!demo")`, moduły kafelków poza repo (`apps/red-pisma-sprawy` usunięte).
 
 Historia per commit: `docs/etapy/`. Brief dla nowych sesji pracy: `docs/BRIEF-PROJEKTU.md`.
 

@@ -27,6 +27,10 @@ import java.io.IOException;
 import java.util.Set;
 
 /**
+ * WARIANT A (profil {@code prod}: grupy AD przez LDAPS, Kerberos na IIS). NIEUŻYWANY
+ * w produkcji od 2026-08-11 — produkcja to profil {@code declared} z nagłówkami wpisywanymi
+ * przez moduł IIS (ADR-0006/0008). Zachowany jako droga powrotna (ADR-0005). Nie rozwijać.
+ *
  * Uwierzytelnianie pre-authenticated na podstawie nagłówka wstrzykiwanego przez IIS
  * po udanym handshake'u Kerberos (wariant A architektury).
  *

@@ -1,5 +1,11 @@
 # Runbook: profil `declared` (deklarowana tożsamość — login + departament)
 
+> **Stan 2026-09 — tryb DEV / AWARYJNY.** W produkcji nagłówki `X-Auth-User` i `X-Auth-Dept`
+> wpisuje moduł IIS po Windows Authentication (ADR-0006/0008); okno deklaracji w przeglądarce
+> i klient `portal-client.ps1` mają zastosowanie tylko bez IIS (dev) albo gdy moduł zostanie
+> wyłączony (rollback z `deploy/iis/INSTRUKCJA-MODUL-WINDOWS-AUTH.md`). Wzmianki o
+> `extensionattribute12` niżej są historyczne — produkcja bierze departament z OU.
+
 Decyzje i granice modelu: `docs/adr/0003-deklarowana-tozsamosc.md` (zaufanie,
 limiter, audyt) + `docs/adr/0005-deklarowany-departament.md` (przynależność).
 Tu wyłącznie „jak uruchomić i jak używać".

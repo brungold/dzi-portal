@@ -12,7 +12,9 @@ package pl.dzi.portal.infrastructure.security;
 import java.util.Set;
 
 /**
- * Zwraca grupy AD (sAMAccountName grup) dla użytkownika.
+ * Zwraca zbiór przynależności użytkownika. WARIANT A: grupy AD (sAMAccountName grup)
+ * z LDAP. W profilu {@code declared} interfejs nie jest używany — zbiór {login, departament,
+ * "wszyscy"} buduje DeclaredHeaderAuthenticationFilter wprost z nagłówków od modułu IIS.
  * Kontrakt: pusty zbiór, gdy użytkownik nieznany lub bez grup portalowych — nigdy null, nigdy wyjątek "not found".
  *
  * Public świadomie (od Etapu 3): testy plasterkowe modułów biznesowych (np. tiles)

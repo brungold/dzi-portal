@@ -3,6 +3,8 @@
 # Portal DZI — wewnętrzny portal kafelkowy departamentu DZI.
 # Autor: Maciej Myśliwiec, 2026.
 # ======================================================================
+# STAN 2026-09: skrypt z Etapu 6 (wariant A) — sprawdza konta gMSA, których produkcja nie ma.
+# Przed użyciem pod declared dostosować nazwy kont (LocalSystem / portal_app). Nie uruchamiać na ślepo.
 <#
 .SYNOPSIS
   Etap 6: przeglad uprawnien i konfiguracji po hardening. PASS/FAIL jak verify-etap1.

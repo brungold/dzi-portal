@@ -28,7 +28,11 @@ class PathSafetyTest {
         var resolved = PathSafety.resolveInside(base, "red-pisma-sprawy/index.html");
 
         assertThat(resolved).isPresent();
-        assertThat(resolved.get()).startsWith(base.toAbsolutePath().normalize());
+        // Porównanie CZYSTO ścieżkowe: AssertJ-owe startsWith(Path) sięga do dysku (toRealPath)
+        // i wywraca się, gdy plik nie istnieje — a ten test celowo nie tworzy plików.
+        Path normalizedBase = base.toAbsolutePath().normalize();
+        assertThat(resolved.get()).isEqualTo(normalizedBase.resolve("red-pisma-sprawy").resolve("index.html"));
+        assertThat(resolved.get().startsWith(normalizedBase)).isTrue();
         assertThat(resolved.get().getFileName().toString()).isEqualTo("index.html");
     }
 

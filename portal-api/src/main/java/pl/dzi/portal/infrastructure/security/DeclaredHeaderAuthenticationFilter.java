@@ -31,25 +31,27 @@ import java.util.Set;
 import java.util.regex.Pattern;
 
 /**
- * Profil {@code declared}: tożsamość jest DEKLAROWANA nagłówkami przez klienta
- * (skrypt PowerShell, przeglądarka), NIE uwierzytelniana — ADR-0003 (granice
- * zaufania, limiter, audyt) + ADR-0005 (model przynależności).
+ * Profil {@code declared} — PRODUKCYJNY od 2026-08-11. Tożsamość przychodzi w dwóch
+ * nagłówkach: LOGIN ({@code X-Auth-User}) i DEPARTAMENT ({@code X-Auth-Dept}). Filtr
+ * nie rozstrzyga, kto je ustawił — o tym decyduje brzeg:
+ *  - PROD: moduł IIS PortalAuthUserHeader v3.0 wpisuje oba PO Windows Authentication
+ *    (NTLM) i nadpisuje cokolwiek przysłał klient; departament = pierwsze OU ze ścieżki
+ *    DN użytkownika w AD, małymi literami (ADR-0006, ADR-0008). Tożsamość jest wtedy
+ *    UWIERZYTELNIONA.
+ *  - DEV / awaryjnie bez IIS: te same nagłówki są DEKLARACJĄ klienta (ADR-0003) —
+ *    nieuwierzytelnioną; stąd kompensacje niżej.
  *
- * Klient deklaruje LOGIN ({@code X-Auth-User}) i DEPARTAMENT ({@code X-Auth-Dept},
- * skrót z AD extensionattribute12). Serwer NICZEGO nie weryfikuje w katalogu ani
- * w bazie — zbiór uprawnień żądania to {login, departament, "wszyscy"}, porównywany
- * z tile_permissions.ad_group (AccessFacade, case-insensitive). Dzięki temu
- * uprawnienia kafelka nadaje się departamentowi, loginowi imiennie albo miksem —
- * bez rejestru użytkowników po stronie portalu (uzasadnienie skali: ADR-0005).
- *
- * Konsekwencja wprost: kafelek jest widoczny dla każdego, kto zna adres portalu
- * i wpisze właściwy departament. tile_permissions PORZĄDKUJE widoczność, nie chroni
- * danych — stąd bezwzględny zakaz danych wrażliwych w tym trybie.
+ * Serwer niczego nie weryfikuje w katalogu ani w bazie — zbiór uprawnień żądania to
+ * {login, departament, "wszyscy"}, porównywany z tile_permissions.ad_group
+ * (AccessFacade, case-insensitive). Uprawnienia kafelka nadaje się departamentowi,
+ * loginowi imiennie albo miksem — bez rejestru użytkowników (ADR-0005).
  *
  * Różnice względem LoopbackHeaderAuthenticationFilter (wariant A, prod):
  *  - zaufanie: loopback LUB skonfigurowane CIDR-y (puste CIDR-y = tylko loopback),
- *  - BRAK dev-fallbacku — deklaracja musi być jawna, żeby audyt wiązał żądanie z loginem,
- *  - przed uwierzytelnieniem: limiter częstotliwości + detekcja anomalii (429).
+ *  - BRAK dev-fallbacku — nagłówek musi być jawny, żeby audyt wiązał żądanie z loginem,
+ *  - przed uwierzytelnieniem: limiter częstotliwości (liczy /api ORAZ pliki /apps)
+ *    + detekcja wielu loginów z jednego adresu (429). Przy tożsamości z NTLM ta druga
+ *    daje głównie fałszywe alarmy (RDS, wspólna stacja) — próg konfigurowalny.
  *
  * Celowo NIE jest to bean Springa — instancję tworzy DeclaredSecurityConfiguration
  * (ta sama pułapka podwójnej rejestracji, co przy filtrze wariantu A).

@@ -3,6 +3,9 @@
 # Portal DZI — wewnętrzny portal kafelkowy departamentu DZI.
 # Autor: Maciej Myśliwiec, 2026.
 # ======================================================================
+# WARIANT A (Kerberos/SPN/gMSA/LDAP) — NIEUŻYWANY w produkcji od 2026-08-11.
+# Produkcja: profil declared + moduł IIS (deploy/iis/INSTRUKCJA-MODUL-WINDOWS-AUTH.md).
+# Zachowany jako droga powrotna (ADR-0005). Nie uruchamiać na DZI-APP01V bez decyzji.
 <#
 .SYNOPSIS
   Etap 1: konfiguracja IIS dla arimr-app.zszik.pl — Windows Auth (Negotiate przed NTLM),

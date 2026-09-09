@@ -3,7 +3,9 @@
 -- Autor: Maciej Myśliwiec, 2026.
 -- ======================================================================
 -- ======================================================================
--- Retencja rejestrow (Etap 6). URUCHAMIA konto UTRZYMANIOWE, NIGDY gMSA
+-- STAN 2026-09: retencja NIE jest jeszcze wlaczona (backlog). Nazwy kont ponizej sa z wariantu A
+-- (gMSA); w produkcji konta runtime to portal_app + dwa konta robocze (prod-grants.sql).
+-- Retencja rejestrow (Etap 6). URUCHAMIA konto UTRZYMANIOWE, NIGDY konto aplikacji
 -- aplikacji - DENY UPDATE/DELETE na audit_log dla kont runtime ma zostac
 -- nienaruszone (to jest cala wartosc append-only).
 -- Konto wykonujace potrzebuje jednorazowo:

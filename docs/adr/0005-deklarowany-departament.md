@@ -2,6 +2,10 @@
 
 Status: zaakceptowany · Data: 2026-08-03 · Zmienia model przynależności z ADR-0003
 
+> **Aktualizacja 2026-09:** źródłem skrótu departamentu w produkcji jest pierwsze `OU=`
+> ze ścieżki DN użytkownika, nie `extensionattribute12` — ADR-0008 (moduł IIS v3.0).
+> Model {login, departament, wszyscy} vs `tile_permissions` bez zmian.
+
 > **Aktualizacja 2026-08-11 — ADR-0006:** w produkcji tożsamość pochodzi
 > z Windows Authentication — moduł IIS wpisuje uwierzytelniony login do
 > X-Auth-User, a X-Auth-Dept od klienta jest usuwany. Deklaracja pozostaje

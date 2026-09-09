@@ -24,6 +24,10 @@ import java.util.Set;
 import static org.springframework.ldap.query.LdapQueryBuilder.query;
 
 /**
+ * WARIANT A (profil {@code prod}: grupy AD przez LDAPS, Kerberos na IIS). NIEUŻYWANY
+ * w produkcji od 2026-08-11 — produkcja to profil {@code declared} z nagłówkami wpisywanymi
+ * przez moduł IIS (ADR-0006/0008). Zachowany jako droga powrotna (ADR-0005). Nie rozwijać.
+ *
  * Grupy AD w dwóch krokach:
  *  1) DN użytkownika po sAMAccountName,
  *  2) jedno zapytanie o grupy z regułą LDAP_MATCHING_RULE_IN_CHAIN (OID 1.2.840.113556.1.4.1941),

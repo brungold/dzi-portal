@@ -44,11 +44,12 @@ SQL Server Express (baza portal): tiles, tile_permissions, audit_log (+ gotowe, 
   przełączyć na private). Obieg: DOM (IntelliJ + git) → LAPTOP (świeży ZIP, `mvn clean
   package`, bez gita) → SERWER (artefakty przez J:). Wariant „pliki najpierw na
   serwer" zdarzył się trzy razy — wtedy repo dogania serwer tego samego tygodnia.
-- **Od 2026-09-08 repo = serwer** dla: modułu IIS (v3.0), `web.config`, `portal-api.xml`
-  (`deploy/winsw/portal-api.declared.xml`), struktury `config\application-declared.yml`
-  (`.example`), czterech modułów w `apps/` (kod, bez danych).
-  **Wyjątki (otwarte):** `frontend/` (powłoka na serwerze vs `index.html` z commitu 37),
-  agregaty ReD (`red-dashboard.js`, `data/`, skrypt generujący).
+- **Od 2026-09-09 repo = serwer** (listing) dla: modułu IIS (v3.0), `web.config`,
+  `portal-api.xml` (`deploy/winsw/portal-api.declared.xml`), struktury
+  `config\application-declared.yml` (`.example`), całego `frontend/`.
+  **Katalogi modułów kafelków (`D:\portal\apps\*`) są celowo TYLKO na serwerze** —
+  decyzja 2026-09-08; repo ma procedurę i układ katalogów (`apps/README.md`).
+  Konsekwencja: kopia zapasowa `D:\portal\apps` to jedyne zabezpieczenie modułów.
 - Decyzje: `docs/adr/0001..0008`; historia paczek: `docs/etapy/`; eksploatacja:
   `docs/winsw-runbook.md`, `deploy/iis/INSTRUKCJA-MODUL-WINDOWS-AUTH.md`, `apps/README.md`.
 
@@ -95,12 +96,11 @@ wiersza `wszyscy`. `mvn clean verify` — testy jednostkowe; `*IT` tylko z Docke
 
 ## 7. Otwarte tematy (kolejność ważności)
 
-1. **Biuro:** test A (przeglądarka po przejściu na usługę), test odmowy 403
-   (jedyny niewykonany punkt akceptacji strażnika: `active=0` na kafelku → „Brak
-   dostępu" + `APP_DENIED`), Faza 12 (restart serwera, `BackConnectionHostNames`).
-2. **Repo = serwer, reszta:** listing `D:\portal\frontend` i `apps\red-pisma-sprawy`
-   → decyzja o powłoce (Piotra vs commit 37) i agregatach ReD; wersje robocze
-   AUREA (`_v1..v4`, `_old`) do skasowania z serwera.
+1. **Biuro:** Faza 12 (restart serwera w cichej porze, `BackConnectionHostNames`).
+   Test A i test 403 — wykonane 2026-09-09 (strażnik ma komplet potwierdzeń).
+2. **Porządki w katalogach modułów (Piotr):** ReD — 279 MB JSON, skrypt SQL, generator
+   i stara migawka `data\detailss_20260817` poza witrynę (`D:\portal\praca\`);
+   AUREA — kasacja `_v1..v4`, `_old`; układ docelowy w `apps/README.md`.
 3. **Paczka kodu #2 (jar):** audyt `data/` + `pdf/xml/txt` w `AppsAuditPolicy`,
    baner `declared` (tekst o module v2), 20 s w `application.yml`, komentarz
    `extensionattribute12` → OU. Osobno, po przebiegu testów: `DevSecurityConfiguration`

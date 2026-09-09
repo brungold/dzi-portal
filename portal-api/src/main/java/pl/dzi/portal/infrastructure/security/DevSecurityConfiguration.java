@@ -19,6 +19,11 @@ import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.web.SecurityFilterChain;
 
 /**
+ * UWAGA (2026-09): {@code @Profile("!prod")} oznacza, że ta konfiguracja żyje TAKŻE pod
+ * produkcyjnym {@code declared} — dostarcza bean AdGroupResolver łańcuchom wariantu A
+ * w SecurityConfig i łańcuch statyki (permitAll na loopbacku, bez zasobów — nieszkodliwy).
+ * Zmiana na {@code @Profile("dev")} = osobna paczka z ogrodzeniem SecurityConfig.
+ *
  * Konfiguracja wyłącznie dla środowisk bez prod.
  */
 @Configuration

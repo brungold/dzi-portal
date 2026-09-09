@@ -20,7 +20,7 @@ import java.util.Map;
  * @param header          nazwa nagłówka z tożsamością, wstrzykiwanego przez IIS (LOGON_USER)
  * @param devFallbackUser DEV ONLY: użytkownik podstawiany przy braku nagłówka (żądanie i tak musi
  *                        przyjść z loopbacku); w prod jawnie pusty string
- * @param groupCacheTtl   TTL cache'u grup AD per użytkownik
+ * @param groupCacheTtl   TTL cache'u grup AD per użytkownik (WARIANT A; w declared nieużywany)
  * @param staticGroups    DEV ONLY: mapa login -> grupy dla StaticAdGroupResolver
  */
 @ConfigurationProperties(prefix = "portal.security")

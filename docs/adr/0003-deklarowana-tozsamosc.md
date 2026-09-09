@@ -2,6 +2,11 @@
 
 Status: zaakceptowany · Data: 2026-07-21 · Uzupełnia ADR-0001 (dec. 6 i 7)
 
+> **Aktualizacja 2026-09:** profil `declared` jest profilem PRODUKCYJNYM od 2026-08-11,
+> ale nagłówki wpisuje serwer (moduł IIS po NTLM, ADR-0006) — tożsamość jest uwierzytelniona.
+> Deklaracja przez klienta pozostaje trybem dev/awaryjnym. Kompensacje (limiter, blokada
+> wielu loginów z adresu) działają nadal; próg blokady jest konfigurowalny.
+
 > **Aktualizacja 2026-08-11 — ADR-0006:** w produkcji tożsamość pochodzi
 > z Windows Authentication — moduł IIS wpisuje uwierzytelniony login do
 > X-Auth-User, a X-Auth-Dept od klienta jest usuwany. Deklaracja pozostaje

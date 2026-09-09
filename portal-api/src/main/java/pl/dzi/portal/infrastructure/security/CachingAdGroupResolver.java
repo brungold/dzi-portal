@@ -17,6 +17,10 @@ import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 
 /**
+ * WARIANT A (profil {@code prod}: grupy AD przez LDAPS, Kerberos na IIS). NIEUŻYWANY
+ * w produkcji od 2026-08-11 — produkcja to profil {@code declared} z nagłówkami wpisywanymi
+ * przez moduł IIS (ADR-0006/0008). Zachowany jako droga powrotna (ADR-0005). Nie rozwijać.
+ *
  * Dekorator z cache'em TTL per użytkownik — zapytanie o zagnieżdżone grupy na dużym AD
  * (~11,5 tys. kont) bywa wolne, a grupy zmieniają się rzadko.
  *

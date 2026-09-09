@@ -12,7 +12,8 @@ package pl.dzi.portal.infrastructure.security;
 import java.util.Set;
 
 /**
- * Principal portalu: login (sAMAccountName, bez domeny) + grupy AD.
+ * Principal portalu: login (sAMAccountName, bez domeny) + zbiór przynależności:
+ * w profilu declared {login, departament, "wszyscy"}, w wariancie A grupy AD.
  * Świadomie płaski rekord — wszystko, czego potrzebuje RBAC, i nic więcej.
  */
 public record PortalUser(String login, Set<String> groups) {

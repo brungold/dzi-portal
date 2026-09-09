@@ -1,11 +1,11 @@
-# IIS — konfiguracja witryny arimr-app.zszik.pl (stan faktyczny po 2026-08-11)
+# IIS — konfiguracja witryny arimr-app.zszik.pl (stan faktyczny, zweryfikowany 2026-09-07)
 
 > Witryna `portal` serwuje statyczny frontend z `D:\portal\frontend` i proxuje
-> `/api/*` do aplikacji Spring na `127.0.0.1:8080` (URL Rewrite + ARR).
-> **Windows Authentication JEST źródłem tożsamości**: moduł `PortalAuthUserHeader`
-> wpisuje uwierzytelniony login do nagłówka `X-Auth-User` po stronie IIS
-> (ADR-0006). Ten dokument opisuje stan faktyczny; historyczny projekt
-> z Kerberosem/SPN/HTTPS (Etap 1) — patrz runbooki w docs/.
+> `/api/*` ORAZ `/apps/*` do aplikacji Spring na `127.0.0.1:8080` (URL Rewrite + ARR).
+> **Windows Authentication JEST źródłem tożsamości**: moduł `PortalAuthUserHeader` v3.0
+> wpisuje po stronie IIS uwierzytelniony login (`X-Auth-User`) i departament z pierwszego
+> OU w AD (`X-Auth-Dept`) — ADR-0006, ADR-0008. Ten dokument opisuje stan faktyczny;
+> historyczny projekt z Kerberosem/SPN/HTTPS (Etap 1) — patrz runbooki w docs/.
 
 ## Stan witryny
 
@@ -27,6 +27,12 @@
 - Reguła rewrite `portal-api-proxy`: proxy `/api/*` + `HTTP_X_FORWARDED_FOR`.
   `HTTP_X_AUTH_USER` z `{LOGON_USER}` — celowo NIE: reguły działają przed
   uwierzytelnieniem, wartość byłaby zawsze pusta (diagnoza 2026-08-06).
+- Reguła rewrite `portal-apps-proxy`: proxy `/apps/*` (strażnik, ADR-0007) — bez
+  `serverVariables`; ARR dokłada `X-Forwarded-For` sam (audyt `APP_OPEN` ma adres
+  stacji — potwierdzone 2026-09-08).
+- Pliki modułów kafelków NIE leżą w witrynie (`D:\portal\apps`, poza `D:\portal\frontend`).
+- Kompilacja modułu v3.0 wymaga `/reference:System.DirectoryServices.dll`
+  (`INSTRUKCJA-MODUL-WINDOWS-AUTH.md`).
 
 ## Stacje użytkowników (SSO bez okna hasła)
 

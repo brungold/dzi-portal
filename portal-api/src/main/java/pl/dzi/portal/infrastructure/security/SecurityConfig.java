@@ -23,6 +23,12 @@ import org.springframework.security.web.authentication.AnonymousAuthenticationFi
 import pl.dzi.portal.apps.AppsAuthenticationEntryPoint;
 
 /**
+ * UWAGA (2026-09): łańcuchy {@code /api} i {@code /apps} zdefiniowane tutaj to WARIANT A
+ * (LoopbackHeaderAuthenticationFilter + grupy AD). Pod profilem {@code declared} są tworzone,
+ * ale PRZESŁONIĘTE łańcuchami z DeclaredSecurityConfiguration (@Order -10/-9). Beany
+ * wspólne (entry point, fallback) obowiązują w obu wariantach. Ogrodzenie profilem
+ * wymaga jednoczesnej zmiany DevSecurityConfiguration i przebiegu testów — zaplanowane.
+ *
  * Konfiguracja security — jawna i w całości pod kontrolą (bez form-loginu, basic auth i sesji).
  * Model: IIS wykonuje Kerberos, aplikacja ufa nagłówkowi wyłącznie z loopbacku.
  *

@@ -3,6 +3,8 @@
 # Portal DZI — wewnętrzny portal kafelkowy departamentu DZI.
 # Autor: Maciej Myśliwiec, 2026.
 # ======================================================================
+# STAN 2026-09: retencja audytu NIE jest jeszcze włączona w produkcji (backlog). Konto
+# utrzymaniowe i harmonogram do ustalenia; DENY na audit_log dla kont runtime obowiązuje (prod-grants.sql).
 <#
 .SYNOPSIS
   Rejestruje cotygodniowe zadanie retencji (Task Scheduler; SQL Express nie ma Agenta).

@@ -16,8 +16,8 @@ import java.time.Duration;
 import java.util.List;
 
 /**
- * Ustawienia profilu {@code declared} (deklarowana tożsamość — ADR-0003,
- * model przynależności: ADR-0005 — deklarowany departament).
+ * Ustawienia profilu {@code declared} (ADR-0003; model przynależności ADR-0005;
+ * w produkcji nagłówki wpisuje moduł IIS — ADR-0006/0008).
  *
  * Bezpieczny default: {@code allowedCidrs} PUSTE, czyli deklaracje przyjmowane
  * wyłącznie z loopbacku (zachowanie identyczne jak wariant A). Otwarcie na sieć
@@ -33,9 +33,9 @@ import java.util.List;
  *                              jeszcze za normalne; przekroczenie = sygnatura podszywania
  * @param anomalyWindow         okno obserwacji dla powyższego licznika
  * @param blockDuration         czas blokady adresu po wykryciu anomalii
- * @param deptHeader            nazwa nagłówka z DEKLAROWANYM departamentem (ADR-0005);
- *                              wartość = skrót z AD extensionattribute12 (dzi/dag/dpb…),
- *                              normalizowana do małych liter po stronie serwera
+ * @param deptHeader            nazwa nagłówka z departamentem (ADR-0005); w produkcji
+ *                              wartość = pierwsze OU ze ścieżki DN w AD (dzi/dag/dpb…,
+ *                              ADR-0008), normalizowana do małych liter po stronie serwera
  */
 @ConfigurationProperties(prefix = "portal.security.declared")
 record DeclaredIdentityProperties(

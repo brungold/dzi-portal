@@ -5,6 +5,9 @@
   Nie usuwać tej informacji przy kopiowaniu ani modyfikacji pliku.
 -->
 <!--
+  WARIANT A (gMSA + profil prod + sekret LDAP w env) — NIEUZYWANY w produkcji.
+  Produkcja: deploy/winsw/portal-api.declared.xml (kopia z serwera), docs/winsw-runbook.md.
+
   Szablon konfiguracji WinSW dla portal-api (Faza B runbooka).
   1) Skopiuj do D:\portal\api\portal-api.xml i uzupelnij wartosci CHANGE_ME.
   2) Obok poloz WinSW-x64.exe przemianowany na portal-api.exe.
