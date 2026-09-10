@@ -1,0 +1,48 @@
+/*
+ * Portal DZI — wewnętrzny portal kafelkowy departamentu DZI.
+ * Autor: Maciej Myśliwiec, 2026.
+ * Autorskie prawa osobiste (prawo do autorstwa) niezbywalne — art. 16 pr. aut.
+ * Nie usuwać tej informacji przy kopiowaniu ani modyfikacji pliku.
+ *
+ * Panel administracyjny — tylko to, czego nie ma w powłoce portal-dzi.css
+ * (tabele, plakietki, KPI, panel filtrów i stronicowanie są z powłoki).
+ */
+.admin-main { max-width: none; }
+.admin-heading { margin-bottom: 14px; }
+.admin-heading h1 { margin: 4px 0 6px; font-size: clamp(24px, 3vw, 32px); }
+
+.admin-tabs { display: flex; flex-wrap: wrap; gap: 8px; margin: 6px 0 16px; }
+
+.admin-section { display: grid; gap: 14px; }
+.admin-section[hidden] { display: none; }
+
+.admin-filter-panel { grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); align-items: end; }
+.admin-filter-panel .button { align-self: end; }
+.admin-check { display: flex; align-items: center; gap: 8px; align-self: end; min-height: 42px; }
+.admin-check input { width: 18px; height: 18px; accent-color: var(--brand-deep); }
+.admin-presets { display: flex; gap: 6px; align-self: end; }
+
+.admin-kpi { margin: 0; }
+.admin-kpi strong { font-size: clamp(18px, 2.2vw, 24px); word-break: break-all; }
+
+.admin-error { padding: 12px 14px; color: var(--brand-red); background: var(--red-soft); border: 1px solid rgba(169, 50, 38, .25); border-radius: var(--radius-sm); }
+.admin-warning { margin-top: 12px; padding: 11px 13px; color: var(--gold-text); background: var(--gold-soft); border-left: 4px solid var(--brand-gold); border-radius: var(--radius-sm); line-height: 1.5; }
+.warn-inline { color: var(--gold-text); font-weight: 700; font-size: 12px; white-space: nowrap; }
+
+th.sortable { cursor: pointer; user-select: none; }
+th.sortable:hover { background: var(--line); }
+th.sortable.asc::after { content: " ▲"; font-size: 9px; }
+th.sortable.desc::after { content: " ▼"; font-size: 9px; }
+td.num, th.num { text-align: right; font-variant-numeric: tabular-nums; }
+td.empty { color: var(--muted); text-align: center; }
+tr.clickable { cursor: pointer; }
+tr.clickable:focus-visible { outline: 2px solid var(--brand-green); outline-offset: -2px; }
+.mono.small { font-size: 11px; }
+
+.admin-sql { width: 100%; margin-top: 12px; padding: 12px; color: var(--ink); background: var(--surface-soft); border: 1px solid var(--line-strong); border-radius: var(--radius-sm); font: 12.5px/1.5 ui-monospace, Consolas, monospace; resize: vertical; }
+.admin-actions { display: flex; align-items: center; gap: 12px; margin-top: 10px; }
+
+@media (max-width: 780px) {
+  .admin-filter-panel { grid-template-columns: 1fr; }
+  .admin-presets { flex-wrap: wrap; }
+}

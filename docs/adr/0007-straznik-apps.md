@@ -53,6 +53,25 @@ Rozstrzygnięcia szczegółowe:
 - Nowy moduł wymaga wpisu w `tiles` zanim zadziała — fail-closed z definicji.
 - `DevSecurityConfiguration` bez `/apps/**` w permitAll — strażnik testowalny lokalnie.
 
+## Aneks 2026-09-08: co jest plikiem danych (rozstrzygnięcie D3, uzupełnienie)
+
+Audyt selektywny rozpoznawał dane wyłącznie po rozszerzeniu (`csv/xlsx/json`).
+Dwa fakty z produkcji to złamały: moduł ReD trzyma agregaty z danymi osobowymi
+w plikach `.js` (`red-dashboard.js`, `data/*.js`), a rozszerzenie `.js` z definicji
+oznacza zasób towarzyszący — pobranie takiego pliku nie zostawiało śladu.
+
+**Decyzja:** plik jest danymi, gdy (a) ma rozszerzenie `csv/xlsx/xls/json/pdf/xml/txt`
+**albo** (b) leży w podkatalogu `data/` modułu — dowolna głębokość, dowolne rozszerzenie.
+Konwencja dla autorów modułów (`apps/README.md`): dane do `data/`. Rozpoznanie idzie
+po ścieżce względem katalogu modułu (`AppsAuditPolicy.isDataFile`), tak samo
+w polityce audytu (czy pisać) i w kontrolerze (jaka akcja: `APP_DATA`).
+
+Koszt: kilka dodatkowych wpisów przy otwarciu modułu z wieloma plikami w `data/`
+(ReD: jeden plik na KO) — akceptowalny wobec alternatywy, którą jest pobranie danych
+osobowych bez wpisu w rejestrze. Poza tym: audyt `.txt/.pdf/.xml` też jest nowy —
+moduły dokumentacyjne (AUREA: cztery `.txt`) dostaną wpisy `APP_DATA` o notatkach;
+szum niewielki, świadomy.
+
 ---
 
 *Autor: Maciej Myśliwiec, 2026. Autorskie prawa osobiste (prawo do autorstwa)

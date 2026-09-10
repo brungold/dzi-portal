@@ -12,6 +12,7 @@ package pl.dzi.portal.apps;
 import jakarta.servlet.http.HttpServletRequest;
 import pl.dzi.portal.infrastructure.audit.AuditPolicy;
 
+import java.util.Locale;
 import java.util.Set;
 
 /**
@@ -22,11 +23,20 @@ import java.util.Set;
  * Zapisujemy: każdą odmowę i błąd (>=400), wejście do modułu (dokument HTML, także
  * katalog z domyślnym index.html) oraz pobrania plików danych. Pomijamy zasoby
  * towarzyszące (css/js/obrazki/fonty) — o ile wydały się poprawnie.
+ *
+ * Plik danych (aneks ADR-0007, 2026-09): rozszerzenie z DATA_EXTENSIONS ALBO położenie
+ * w podkatalogu {@code data/} modułu — niezależnie od rozszerzenia. Powód: moduły
+ * trzymają dane także w plikach .js (agregaty ReD, {@code data/*.js}), a rozszerzenie
+ * .js samo w sobie oznacza zasób towarzyszący. Konwencja dla autorów modułów:
+ * dane do {@code data/} (apps/README.md).
  */
 public final class AppsAuditPolicy implements AuditPolicy {
 
     /** Rozszerzenia plików danych — audytowane zawsze (spójnie z AppsController.ACTION_DATA). */
-    static final Set<String> DATA_EXTENSIONS = Set.of("csv", "xlsx", "json");
+    static final Set<String> DATA_EXTENSIONS = Set.of("csv", "xlsx", "xls", "json", "pdf", "xml", "txt");
+
+    /** Podkatalog modułu, którego cała zawartość jest danymi (bez względu na rozszerzenie). */
+    static final String DATA_DIRECTORY = "data/";
 
     private static final Set<String> DOCUMENT_EXTENSIONS = Set.of("html", "htm");
 
@@ -39,7 +49,31 @@ public final class AppsAuditPolicy implements AuditPolicy {
         if (path.endsWith("/")) {
             return true; // katalog modułu => serwowany index.html => wejście do modułu
         }
-        String extension = AppsMediaTypes.extensionOf(path);
-        return DOCUMENT_EXTENSIONS.contains(extension) || DATA_EXTENSIONS.contains(extension);
+        String relative = relativeWithinModule(path);
+        String extension = AppsMediaTypes.extensionOf(relative);
+        return DOCUMENT_EXTENSIONS.contains(extension) || isDataFile(relative);
+    }
+
+    /**
+     * Czy ścieżka WZGLĘDEM katalogu modułu ({@code app.js}, {@code data/ko-01.js},
+     * {@code dane_Aurea/plik.csv}) wskazuje plik danych.
+     */
+    static boolean isDataFile(String relativePath) {
+        String normalized = relativePath.replace('\\', '/').toLowerCase(Locale.ROOT);
+        if (normalized.startsWith(DATA_DIRECTORY) || normalized.contains("/" + DATA_DIRECTORY)) {
+            return true;
+        }
+        return DATA_EXTENSIONS.contains(AppsMediaTypes.extensionOf(normalized));
+    }
+
+    /** {@code /apps/<code>/dir/file} -> {@code dir/file}; poza /apps/ zwraca ścieżkę bez zmian. */
+    static String relativeWithinModule(String requestUri) {
+        String prefix = "/apps/";
+        if (!requestUri.startsWith(prefix)) {
+            return requestUri;
+        }
+        String afterPrefix = requestUri.substring(prefix.length());
+        int slash = afterPrefix.indexOf('/');
+        return slash < 0 ? "" : afterPrefix.substring(slash + 1);
     }
 }

@@ -103,14 +103,15 @@ class DeclaredSecurityConfiguration {
                 ==========================================================================
                  PROFIL DECLARED: aplikacja UFA nagłówkowi X-Auth-User z zaufanych
                  źródeł (loopback + CIDR-y: {}).
-                  - PROD: nagłówek wypełnia moduł IIS PO Windows Authentication —
-                    login jest UWIERZYTELNIONY i niepodrabialny, a X-Auth-Dept od
-                    klienta jest usuwany (ADR-0006); departament wróci z modułem v2
+                  - PROD: oba nagłówki wypełnia moduł IIS v3.0 PO Windows Authentication —
+                    login i departament (pierwsze OU z AD) są UWIERZYTELNIONE, a to,
+                    co przysłał klient, jest nadpisywane (ADR-0006, ADR-0008)
                   - DEV (bez IIS): nagłówek pochodzi z deklaracji frontendu lub
                     dev-fallbacku — tożsamość NIE jest wtedy uwierzytelniana
                   - uprawnienia żądania = login+wszyscy vs tile_permissions
                   - kompensacje: audyt append-only (kto, co, skąd), limit żądań
-                    ({}/min) i blokada adresu deklarującego >{} loginów w oknie {}
+                    ({}/min, /api + pliki /apps) i blokada adresu z >{} loginami
+                    w oknie {} (przy NTLM głównie fałszywe alarmy — próg konfigurowalny)
                 ==========================================================================""",
                 properties.allowedCidrs().isEmpty() ? "(brak — tylko loopback)" : properties.allowedCidrs(),
                 properties.maxRequestsPerMinute(),

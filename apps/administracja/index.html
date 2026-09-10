@@ -1,0 +1,176 @@
+<!doctype html>
+<!--
+  Portal DZI - wewnętrzny portal kafelkowy departamentu DZI.
+  Autor: Maciej Myśliwiec, 2026.
+  Autorskie prawa osobiste (prawo do autorstwa) niezbywalne - art. 16 pr. aut.
+  Nie usuwać tej informacji przy kopiowaniu ani modyfikacji pliku.
+
+  Moduł "administracja" - panel administracyjny, Faza A (ADR-0009): tylko odczyt.
+  Dane wyłącznie z /api/admin/** (RBAC serwerowy: READ na kafelku 'administracja').
+-->
+<html lang="pl" data-theme="light">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="description" content="Portal DZI - panel administracyjny (odczyt)">
+  <title>Administracja | Portal DZI</title>
+  <link rel="stylesheet" href="../../assets/css/portal-dzi.css">
+  <link rel="stylesheet" href="module.css">
+  <script src="../../assets/js/portal-dzi.js" defer></script>
+  <script src="app.js" defer></script>
+</head>
+<body>
+  <a class="skip-link" href="#main">Przejdź do treści</a>
+  <header class="site-header">
+    <div class="brand-bar" aria-hidden="true"></div>
+    <div class="header-inner">
+      <a class="brand" href="../../index.html" aria-label="Portal DZI, strona główna">
+        <span class="logo-plate"><img src="../../assets/logo.png" alt="Agencja Restrukturyzacji i Modernizacji Rolnictwa" width="190" height="54"></span>
+        <span class="brand-text"><strong>Portal DZI</strong><small>Departament Zarządzania Informatyką</small></span>
+      </a>
+      <nav class="top-actions" aria-label="Narzędzia użytkownika">
+        <button class="menu-hamburger" type="button" id="menu-hamburger" aria-label="Ukryj menu boczne" aria-controls="main-nav" aria-expanded="true"><span aria-hidden="true"></span></button>
+        <button class="icon-button" type="button" id="theme-toggle" aria-label="Włącz tryb ciemny" aria-pressed="false"><svg aria-hidden="true" viewBox="0 0 24 24"><path d="M12 3a9 9 0 1 0 9 9 9.001 9.001 0 0 1-9-9z"/></svg></button>
+        <div class="user-box" aria-label="Zalogowany użytkownik"><span class="user-name">&nbsp;</span><span class="user-meta">Portal DZI</span></div>
+      </nav>
+    </div>
+  </header>
+  <div class="app-shell">
+    <aside class="side-nav" aria-label="Nawigacja główna">
+      <nav id="main-nav">
+        <a class="nav-item" href="../../index.html"><svg aria-hidden="true" viewBox="0 0 24 24"><path d="M3 11 12 3l9 8v9a1 1 0 0 1-1 1h-5v-7H9v7H4a1 1 0 0 1-1-1z"/></svg><span>Start</span></a>
+        <a class="nav-item" href="../../index.html#moduly"><svg aria-hidden="true" viewBox="0 0 24 24"><path d="M4 4h6v6H4zm10 0h6v6h-6zM4 14h6v6H4zm10 0h6v6h-6z"/></svg><span>Moduły</span></a>
+        <a class="nav-item active" href="index.html" aria-current="page"><svg aria-hidden="true" viewBox="0 0 24 24"><path d="M12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6zm7.4-3a7.4 7.4 0 0 0-.1-1l2.1-1.6-2-3.4-2.5 1a7.5 7.5 0 0 0-1.7-1L14.8 3H9.2l-.4 2.6a7.5 7.5 0 0 0-1.7 1l-2.5-1-2 3.4L4.7 11a7.4 7.4 0 0 0 0 2l-2.1 1.6 2 3.4 2.5-1a7.5 7.5 0 0 0 1.7 1l.4 2.6h5.6l.4-2.6a7.5 7.5 0 0 0 1.7-1l2.5 1 2-3.4-2.1-1.6c.1-.3.1-.7.1-1z"/></svg><span>Administracja</span></a>
+      </nav>
+    </aside>
+    <main id="main" class="main-content module-main admin-main">
+      <nav class="module-breadcrumbs" aria-label="Ścieżka nawigacyjna"><a href="../../index.html">Portal DZI</a><span>/</span><a href="../../index.html#moduly">Moduły</a><span>/</span><span aria-current="page">Administracja</span></nav>
+
+      <section class="section-heading admin-heading">
+        <div><small class="eyebrow">PANEL ADMINISTRACYJNY · TYLKO ODCZYT</small><h1>Administracja portalu</h1><p class="section-description">Kafelki, uprawnienia, wejścia i statystyki z rejestru audytu. Nadawanie uprawnień — przez SQL (sekcja Generator).</p></div>
+        <div id="admin-status" class="data-state" role="status" aria-live="polite"><span class="status-dot status-ok"></span><span id="admin-status-text">Łączenie…</span></div>
+      </section>
+
+      <div id="admin-error" class="admin-error" role="alert" hidden></div>
+
+      <nav class="admin-tabs" aria-label="Sekcje panelu">
+        <button type="button" class="filter active" data-section="kafelki" aria-pressed="true">Kafelki</button>
+        <button type="button" class="filter" data-section="uprawnienia" aria-pressed="false">Uprawnienia</button>
+        <button type="button" class="filter" data-section="wejscia" aria-pressed="false">Ostatnie wejścia</button>
+        <button type="button" class="filter" data-section="statystyka" aria-pressed="false">Statystyka</button>
+        <button type="button" class="filter" data-section="generator" aria-pressed="false">Generator SQL</button>
+      </nav>
+
+      <!-- 1. KAFELKI -->
+      <section class="admin-section" data-panel="kafelki">
+        <div class="panel table-panel">
+          <div class="table-heading panel-heading">
+            <div><h3>Wszystkie kafelki</h3><p>Także nieaktywne. Wejście = otwarcie strony modułu (<code>APP_OPEN</code>). Kliknij wiersz, żeby zobaczyć uprawnienia.</p></div>
+            <button type="button" class="button secondary compact" id="tiles-export">Eksport CSV</button>
+          </div>
+          <div class="table-scroll"><table id="tiles-table"><thead></thead><tbody></tbody></table></div>
+          <div class="pagination" id="tiles-pagination"></div>
+        </div>
+      </section>
+
+      <!-- 2. UPRAWNIENIA -->
+      <section class="admin-section" data-panel="uprawnienia" hidden>
+        <div class="filter-panel admin-filter-panel">
+          <label>Kafelek<select id="perm-tile"></select></label>
+          <label>Osoba (login)<input id="perm-login" type="text" list="known-logins" placeholder="np. kowalski.jan" autocomplete="off"></label>
+          <button type="button" class="button primary" id="perm-show-tile">Kto widzi kafelek</button>
+          <button type="button" class="button secondary" id="perm-show-user">Co widzi osoba</button>
+        </div>
+        <div id="perm-tile-view" hidden>
+          <div class="panel table-panel">
+            <div class="table-heading panel-heading">
+              <div><h3 id="perm-tile-title">Reguły dostępu</h3><p>Wpisy w <code>tile_permissions</code>. ⚠ przy loginie oznacza, że ta osoba nigdy nie weszła na portal — sprawdź pisownię.</p></div>
+              <button type="button" class="button secondary compact" id="perm-export">Eksport CSV</button>
+            </div>
+            <div class="table-scroll"><table id="perm-table"><thead></thead><tbody></tbody></table></div>
+          </div>
+          <div class="panel table-panel">
+            <div class="table-heading panel-heading"><div><h3>Kto faktycznie wchodził</h3><p>Z rejestru audytu, niezależnie od reguł — także osoby, które miały dostęp wcześniej.</p></div></div>
+            <div class="table-scroll"><table id="visitors-table"><thead></thead><tbody></tbody></table></div>
+            <div class="pagination" id="visitors-pagination"></div>
+          </div>
+        </div>
+        <div id="perm-user-view" hidden>
+          <div class="kpi-grid admin-kpi">
+            <div class="kpi-card"><p>Login</p><strong id="user-login">—</strong><span class="trend neutral" id="user-known"></span></div>
+            <div class="kpi-card"><p>Pierwsze wejście</p><strong id="user-first">—</strong></div>
+            <div class="kpi-card"><p>Ostatnie wejście</p><strong id="user-last">—</strong></div>
+          </div>
+          <div class="panel table-panel">
+            <div class="table-heading panel-heading"><div><h3>Kafelki widoczne dla osoby</h3><p>Imiennie i przez „wszyscy" — na pewno. Departamentowe — tylko jeśli osoba jest w tym departamencie (portal nie zna czyjegoś departamentu; przychodzi z nagłówka przy każdym wejściu).</p></div></div>
+            <div class="table-scroll"><table id="user-grants-table"><thead></thead><tbody></tbody></table></div>
+          </div>
+          <div class="panel table-panel">
+            <div class="table-heading panel-heading"><div><h3>Wejścia tej osoby</h3></div></div>
+            <div class="table-scroll"><table id="user-visits-table"><thead></thead><tbody></tbody></table></div>
+          </div>
+        </div>
+      </section>
+
+      <!-- 3. OSTATNIE WEJŚCIA -->
+      <section class="admin-section" data-panel="wejscia" hidden>
+        <div class="filter-panel admin-filter-panel">
+          <label>Ile wpisów<select id="audit-limit"><option>10</option><option>20</option><option selected>50</option><option>100</option><option>500</option></select></label>
+          <label>Osoba<input id="audit-login" type="text" list="known-logins" placeholder="login" autocomplete="off"></label>
+          <label>Kafelek<select id="audit-tile"><option value="">wszystkie</option></select></label>
+          <label>Akcja<select id="audit-action"><option value="">wszystkie</option><option>APP_OPEN</option><option>APP_DATA</option><option>APP_DENIED</option><option>TILES_LIST</option><option>ADMIN_VIEW</option></select></label>
+          <button type="button" class="button primary" id="audit-refresh">Pokaż</button>
+          <label class="admin-check"><input id="audit-denied" type="checkbox"> tylko odmowy</label>
+        </div>
+        <div class="panel table-panel">
+          <div class="table-heading panel-heading"><div><h3>Ostatnie wpisy audytu</h3><p id="audit-info">Od najnowszego.</p></div><button type="button" class="button secondary compact" id="audit-export">Eksport CSV</button></div>
+          <div class="table-scroll"><table id="audit-table"><thead></thead><tbody></tbody></table></div>
+          <div class="pagination" id="audit-pagination"></div>
+        </div>
+      </section>
+
+      <!-- 4. STATYSTYKA -->
+      <section class="admin-section" data-panel="statystyka" hidden>
+        <div class="filter-panel admin-filter-panel">
+          <label>Od<input id="stats-from" type="date"></label>
+          <label>Do<input id="stats-to" type="date"></label>
+          <div class="admin-presets"><button type="button" class="button secondary compact" data-days="7">7 dni</button><button type="button" class="button secondary compact" data-days="30">30 dni</button><button type="button" class="button secondary compact" data-days="90">90 dni</button></div>
+          <button type="button" class="button primary" id="stats-refresh">Policz</button>
+        </div>
+        <div class="kpi-grid admin-kpi">
+          <div class="kpi-card"><p>Wejścia na portal (strona główna)</p><strong id="kpi-portal-visits">—</strong><span class="trend neutral" id="kpi-portal-users"></span></div>
+          <div class="kpi-card"><p>Wejścia do modułów</p><strong id="kpi-module-visits">—</strong><span class="trend neutral" id="kpi-module-users"></span></div>
+          <div class="kpi-card"><p>Zakres</p><strong id="kpi-range">—</strong></div>
+        </div>
+        <div class="panel table-panel">
+          <div class="table-heading panel-heading"><div><h3>Per moduł</h3></div><button type="button" class="button secondary compact" id="stats-export-tiles">Eksport CSV</button></div>
+          <div class="table-scroll"><table id="stats-tiles-table"><thead></thead><tbody></tbody></table></div>
+        </div>
+        <div class="panel table-panel">
+          <div class="table-heading panel-heading"><div><h3>Per osoba</h3></div><button type="button" class="button secondary compact" id="stats-export-users">Eksport CSV</button></div>
+          <div class="table-scroll"><table id="stats-users-table"><thead></thead><tbody></tbody></table></div>
+          <div class="pagination" id="stats-users-pagination"></div>
+        </div>
+      </section>
+
+      <!-- 5. GENERATOR SQL -->
+      <section class="admin-section" data-panel="generator" hidden>
+        <div class="panel">
+          <div class="panel-heading"><div><h3>Nadanie uprawnienia — gotowe polecenie do SSMS</h3><p>Panel niczego nie wykonuje. Kopiujesz, wklejasz w SSMS (baza <code>portal</code>), wykonujesz. Login podpowiadany z listy osób, które kiedykolwiek weszły na portal.</p></div></div>
+          <div class="filter-panel admin-filter-panel">
+            <label>Kafelek<select id="gen-tile"></select></label>
+            <label>Login<input id="gen-login" type="text" list="known-logins" placeholder="np. kowalski.jan" autocomplete="off"></label>
+            <button type="button" class="button primary" id="gen-build">Wygeneruj</button>
+          </div>
+          <div id="gen-warning" class="admin-warning" hidden></div>
+          <textarea id="gen-sql" class="admin-sql" rows="6" readonly spellcheck="false"></textarea>
+          <div class="admin-actions"><button type="button" class="button secondary compact" id="gen-copy">Kopiuj do schowka</button><span id="gen-copied" class="trend positive" hidden>Skopiowano</span></div>
+        </div>
+      </section>
+
+      <datalist id="known-logins"></datalist>
+    </main>
+  </div>
+  <footer class="site-footer"><p class="footer-brand"><strong>Portal DZI</strong> &mdash; Departament Zarządzania Informatyką ARiMR</p><p class="footer-version">Administracja — Faza A (odczyt), wersja 1.0</p><p class="footer-place-date">Warszawa, wrzesień 2026 r.</p></footer>
+</body>
+</html>

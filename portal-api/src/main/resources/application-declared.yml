@@ -27,16 +27,18 @@ portal:
       # allowed-cidrs:
       #   - 10.20.0.0/16
       allowed-cidrs: []
-      # Sufit żądań /api z jednego adresu (okno 1 min). 120 = 2/s — z zapasem dla
-      # przeglądarki (polling ETag co 10 s + status zadania), za mało dla pętli w skrypcie.
+      # Sufit żądań z jednego adresu (okno 1 min) — liczy /api ORAZ pliki /apps (strażnik,
+      # ADR-0007). 120 = 2/s — z zapasem dla przeglądarki, za mało dla pętli w skrypcie.
       max-requests-per-minute: 120
       # Detekcja podszywania: więcej RÓŻNYCH loginów z jednego adresu w oknie
       # niż poniższy próg => blokada adresu na block-duration + 429 w audycie.
+      # Przy tożsamości z NTLM (ADR-0006) to głównie fałszywe alarmy (RDS, wspólna stacja,
+      # testy kilkoma kontami) — nadpisanie w config\application-declared.yml na serwerze.
       anomaly-distinct-logins: 3
       anomaly-window: 10m
       block-duration: 15m
-      # Nagłówek z deklarowanym departamentem (skrót z AD extensionattribute12,
-      # np. dzi/dag/dpb; serwer normalizuje do małych liter). ADR-0005.
+      # Nagłówek z departamentem: w produkcji wpisuje go moduł IIS v3.0 z pierwszego
+      # OU w AD (np. dzi/dag/dpb, małe litery) — ADR-0005 + ADR-0008; w dev deklaracja.
       dept-header: X-Auth-Dept
 
   # Strażnik modułów (ADR-0007): katalog bazowy /apps NA ZEWNĄTRZ witryny IIS.

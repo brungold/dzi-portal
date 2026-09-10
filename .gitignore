@@ -24,6 +24,8 @@ config/application-declared.yml
 # W repo zostaje tylko apps/README.md (procedura, układ katalogów, konwencje).
 apps/*/
 !apps/README.md
+# Wyjątek: panel administracyjny jest częścią portalu (sprzężony z /api/admin w jarze) — ADR-0009
+!apps/administracja/
 
 # Siatka na dane, gdyby decyzja kiedyś się zmieniła (repo jest publiczne)
 apps/**/*.csv

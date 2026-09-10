@@ -15,6 +15,7 @@ import org.junit.jupiter.api.io.TempDir;
 import org.springframework.security.core.Authentication;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
+import pl.dzi.portal.infrastructure.web.PortalRequestAttributes;
 import pl.dzi.portal.tiles.AccessFacade;
 
 import java.nio.charset.StandardCharsets;
@@ -25,6 +26,7 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.redirectedUrl;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.request;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 /**
@@ -54,6 +56,11 @@ class AppsControllerTest {
                 "<!doctype html><title>ReD</title>", StandardCharsets.UTF_8);
         Files.writeString(baseDir.resolve("red-pisma-sprawy/dane.csv"),
                 "kodjo;ko\nCEN;BOiS\n", StandardCharsets.UTF_8);
+        Files.writeString(baseDir.resolve("red-pisma-sprawy/app.js"),
+                "console.log('ReD');", StandardCharsets.UTF_8);
+        Files.createDirectories(baseDir.resolve("red-pisma-sprawy/data"));
+        Files.writeString(baseDir.resolve("red-pisma-sprawy/data/ko-01.js"),
+                "window.RED_KO_01 = [];", StandardCharsets.UTF_8);
         mockMvc = MockMvcBuilders.standaloneSetup(
                 new AppsController(new AppsProperties(baseDir), access)).build();
     }
@@ -80,6 +87,29 @@ class AppsControllerTest {
         mockMvc.perform(get("/apps/red-pisma-sprawy/dane.csv"))
                 .andExpect(status().isOk())
                 .andExpect(header().string("Content-Type", "text/csv; charset=utf-8"));
+    }
+
+    @Test
+    void shouldMarkDataFilesByExtensionOrDataDirectory() throws Exception {
+        // Aneks ADR-0007: dane rozpoznawane po rozszerzeniu ALBO po katalogu data/ —
+        // agregaty ReD (data/*.js) mają zostawiać ślad w audycie tak jak CSV.
+        mockMvc.perform(get("/apps/red-pisma-sprawy/dane.csv"))
+                .andExpect(status().isOk())
+                .andExpect(request().attribute(PortalRequestAttributes.ACTION, "APP_DATA"));
+        mockMvc.perform(get("/apps/red-pisma-sprawy/data/ko-01.js"))
+                .andExpect(status().isOk())
+                .andExpect(request().attribute(PortalRequestAttributes.ACTION, "APP_DATA"));
+        mockMvc.perform(get("/apps/red-pisma-sprawy/"))
+                .andExpect(status().isOk())
+                .andExpect(request().attribute(PortalRequestAttributes.ACTION, "APP_OPEN"));
+    }
+
+    @Test
+    void shouldLeaveCompanionAssetsWithoutAuditAction() throws Exception {
+        mockMvc.perform(get("/apps/red-pisma-sprawy/app.js"))
+                .andExpect(status().isOk())
+                .andExpect(request().attribute(PortalRequestAttributes.ACTION,
+                        org.hamcrest.Matchers.nullValue()));
     }
 
     @Test

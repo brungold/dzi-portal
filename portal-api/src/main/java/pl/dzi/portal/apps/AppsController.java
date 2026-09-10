@@ -93,7 +93,7 @@ class AppsController {
         }
 
         String fileName = file.getFileName().toString();
-        request.setAttribute(PortalRequestAttributes.ACTION, actionFor(fileName));
+        request.setAttribute(PortalRequestAttributes.ACTION, actionFor(relativeFile));
 
         var resource = new FileSystemResource(file);
         String etag = "W/\"" + resource.getFile().length() + "-" + resource.getFile().lastModified() + "\"";
@@ -106,13 +106,17 @@ class AppsController {
                 .body(resource);
     }
 
-    /** Wejście do modułu i pliki danych mają w audycie własne akcje (polityka: AppsAuditPolicy). */
-    private static String actionFor(String fileName) {
-        String extension = AppsMediaTypes.extensionOf(fileName);
+    /**
+     * Wejście do modułu i pliki danych mają w audycie własne akcje (polityka: AppsAuditPolicy).
+     * Decyduje ścieżka względem katalogu modułu, nie sama nazwa pliku — {@code data/x.js}
+     * to dane (aneks ADR-0007), {@code app.js} to zasób towarzyszący.
+     */
+    private static String actionFor(String relativeFile) {
+        String extension = AppsMediaTypes.extensionOf(relativeFile);
         if ("html".equals(extension) || "htm".equals(extension)) {
             return ACTION_OPEN;
         }
-        if (AppsAuditPolicy.DATA_EXTENSIONS.contains(extension)) {
+        if (AppsAuditPolicy.isDataFile(relativeFile)) {
             return ACTION_DATA;
         }
         return null;

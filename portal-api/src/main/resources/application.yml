@@ -7,6 +7,11 @@
 spring:
   application:
     name: portal-api
+  # Łagodne zamknięcie (ADR-0002 dec. 6): Boot 4 ma graceful shutdown domyślnie, ale z limitem
+  # 30 s — tyle samo, ile stoptimeout WinSW. 20 s daje usłudze margines na czyste zamknięcie
+  # (pula połączeń, log) zanim wrapper zabije proces. Dotąd tylko w profilu prod (nieużywanym).
+  lifecycle:
+    timeout-per-shutdown-phase: 20s
   servlet:
     multipart:
       # Import XLSX (Etap 5): pliki portalowe to setki-tysiące wierszy; twardy limit

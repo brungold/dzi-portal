@@ -2,6 +2,8 @@
 
 **Kod modułów kafelków żyje wyłącznie na serwerze: `D:\portal\apps\<kod>\`.**
 Decyzja z 2026-09-08 — repo nie zawiera katalogów modułów (`.gitignore`: `apps/*/`).
+Jedyny wyjątek: `apps/administracja/` (panel administracyjny) — to część portalu sprzężona
+z jarem (`/api/admin/**`), więc jest wersjonowana razem z nim (ADR-0009).
 Ten plik to procedura, układ katalogów i konwencje. Konsekwencja do zapamiętania:
 kopia zapasowa `D:\portal\apps` jest jedynym zabezpieczeniem modułów.
 
@@ -16,6 +18,7 @@ Każdy podkatalog = jeden moduł = jeden kafelek. Nazwa podkatalogu MUSI być r�
 | `m365_copilot_instrukcja_instalacji` | 20 | `index.html`, `app.js`, `module.css`, 6 × PNG | brak |
 | `epo-podpis` | 30 | `index.html`, `app.js`, `module.css` | brak (pliki EPO czyta przeglądarka użytkownika) |
 | `analiza_obecnosci_raporty_AUREA` | 40 | `index.html`, `app.js`, `module.css` | `dane_Aurea\` (CSV per departament + `lista_plikow.json`) |
+| `administracja` | 900 | `index.html`, `app.js`, `module.css` — **w repo** (`apps/administracja/`, ADR-0009) | brak (wszystko z `/api/admin/**`) |
 
 ## Układ katalogów — jedna zasada
 
